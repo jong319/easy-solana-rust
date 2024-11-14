@@ -1,8 +1,13 @@
 use solana_sdk::{
     signature::Keypair,
-    signer::Signer
+    signer::Signer,
+    commitment_config::CommitmentConfig
 };
+use solana_client::rpc_client::RpcClient;
+
 use std::time::Instant;
+use dotenv::dotenv;
+use std::env;
 use log::info;
 
 /// Generates a solana-sdk `Keypair` struct. 
@@ -35,6 +40,17 @@ pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> K
             info!("Keypairs Created: {}, Time Elapsed: {:?}", attempts, start_time.elapsed());
         }
     }
+}
+
+/// Creates an Rpc Client, accepts an enviroment variable name or direct URL
+pub fn create_rpc_client(rpc_input: &str) -> RpcClient {
+    // Load environment variables from .env file if present
+    dotenv().ok();
+
+    // Check if rpc_input is an environment variable name or a direct URL
+    let rpc_url = env::var(rpc_input).unwrap_or_else(|_| rpc_input.to_string());
+
+    RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed())
 }
 
 
