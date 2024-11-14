@@ -10,4 +10,10 @@ pub use reader::{
     account::EasySolanaAccount,
 };
 
+mod constants;
+pub use constants::{
+    solana_programs,
+    pumpfun_accounts
+};
+
 mod error;

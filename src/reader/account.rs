@@ -7,6 +7,8 @@ use solana_client::rpc_client::RpcClient;
 
 use crate::error::AccountReaderError;
 
+
+/// Convenience interpretation of a solana Account, containing all the important variables and information.
 #[derive(Debug)]
 pub struct EasySolanaAccount {
     pub pubkey: Pubkey,
@@ -39,7 +41,7 @@ impl AccountReader {
 
     /// Fetches and parses accounts given a slice of Pubkeys, returning a Vec<EasySolanaAccount>. 
     /// Invalid accounts are removed. If RPC client fails to fetch data, returns a `AccountReaderError`
-    pub fn fetch_and_parse_accounts(&self, pubkeys: &[Pubkey]) -> Result<Vec<EasySolanaAccount>, AccountReaderError> {
+    pub fn get_easy_solana_accounts(&self, pubkeys: &[Pubkey]) -> Result<Vec<EasySolanaAccount>, AccountReaderError> {
         // Fetch multiple accounts
         let accounts_result = self.client.get_multiple_accounts(pubkeys);
 
@@ -101,7 +103,7 @@ mod tests {
         let pubkeys = account_reader.addresses_to_pubkeys(addresses);
         // 5 valid addresses
         assert!(pubkeys.len() == 5);
-        let easy_solana_accounts = account_reader.fetch_and_parse_accounts(&pubkeys).expect("Failed to fetch accounts");
+        let easy_solana_accounts = account_reader.get_easy_solana_accounts(&pubkeys).expect("Failed to fetch accounts");
         // 4 valid accounts
         assert!(easy_solana_accounts.len() == 4);
         for account in easy_solana_accounts {
@@ -129,7 +131,7 @@ mod tests {
         let client = create_rpc_client("INVALID_RPC_URL");
         let account_reader = AccountReader::new(client);
         let pubkeys = account_reader.addresses_to_pubkeys(addresses);
-        let fetch_and_parse_accounts_result = account_reader.fetch_and_parse_accounts(&pubkeys);
+        let fetch_and_parse_accounts_result = account_reader.get_easy_solana_accounts(&pubkeys);
         assert!(fetch_and_parse_accounts_result.is_err());
     }
 }
