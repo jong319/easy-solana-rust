@@ -8,11 +8,28 @@ use solana_client::rpc_client::RpcClient;
 use std::time::Instant;
 use dotenv::dotenv;
 use std::env;
+use regex::Regex;
 use log::info;
+
+use crate::error::KeypairGenerationError;
 
 /// Generates a solana-sdk `Keypair` struct. 
 /// Use optional starts_with and ends_with variables to generate a vanity address. 
-pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> Keypair {
+pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> Result<Keypair, KeypairGenerationError> {
+     // Define valid regex for Solana public key address characters
+     let valid_chars_regex = Regex::new(r"^[1-9A-HJ-NP-Za-km-z]*$").unwrap();
+     // Validate starts_with and ends_with patterns
+     if let Some(prefix) = starts_with {
+         if !valid_chars_regex.is_match(prefix) {
+             return Err(KeypairGenerationError::InvalidPattern);
+         }
+     }
+     if let Some(suffix) = ends_with {
+        if !valid_chars_regex.is_match(suffix) {
+            return Err(KeypairGenerationError::InvalidPattern);
+        }
+    }
+
     // Mark the start time and initialise attempts
     let start_time = Instant::now();
     let mut attempts: u64 = 0;
@@ -32,7 +49,7 @@ pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> K
             info!("Private Key: \n{}", &private_key);
             info!("Attempts: {:?}", attempts);
             info!("Time Taken: {:?}", start_time.elapsed());
-            return keypair;
+            return Ok(keypair);
         }
 
         // Print progress every 10,000 attempts
@@ -61,20 +78,26 @@ mod tests {
 
     #[test]
     fn generate_keypair_that_starts_with_ab() {
-        let ab_keypair = generate_keypair(Some("ab"), None);
+        let ab_keypair = generate_keypair(Some("ab"), None).unwrap();
         assert!(ab_keypair.pubkey().to_string().starts_with("ab"))
     }
 
     #[test]
     fn generate_keypair_that_ends_with_yz() {
-        let yz_keypair = generate_keypair(None, Some("yz"));
+        let yz_keypair = generate_keypair(None, Some("yz")).unwrap();
         assert!(yz_keypair.pubkey().to_string().ends_with("yz"))
     }
 
     #[test]
     fn generate_keypair_that_starts_with_a_ends_with_z() {
-        let az_keypair = generate_keypair(Some("a"), Some("z"));
+        let az_keypair = generate_keypair(Some("a"), Some("z")).unwrap();
         assert!(az_keypair.pubkey().to_string().starts_with("a"));
         assert!(az_keypair.pubkey().to_string().ends_with("z"));
+    }
+
+    #[test]
+    fn generate_keypair_with_invalid_pattern() {
+        let invalid_keypair = generate_keypair(Some("i"), Some("0"));
+        assert!(invalid_keypair.is_err());
     }
 }
