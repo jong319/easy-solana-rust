@@ -133,7 +133,7 @@ impl AccountReader {
 
     /// Fetches the metadata accounts given a slice of Pubkeys, deserializing their data and returning `Vec<MetadataAccount>`.
     /// Invalid accounts and metadata that cannot be deserialized are removed. If RPC client fails to fetch data, returns a `AccountReaderError`.
-    pub async fn get_metadata_of_tokens(&self, token_pubkeys: &[Pubkey]) -> Result<Vec<MetadataAccount>, AccountReaderError> {
+    pub fn get_metadata_of_tokens(&self, token_pubkeys: &[Pubkey]) -> Result<Vec<MetadataAccount>, AccountReaderError> {
         let metadata_program = metadata_program();
         // Get the pubkeys of the token's metadata accounts by deriving it from their seed
         let pubkeys_of_metadata_account: Vec<Pubkey> = token_pubkeys
@@ -152,7 +152,11 @@ impl AccountReader {
             .into_iter()
             .filter_map(|account_option| account_option)
             .map(|account| {
-                MetadataAccount::deserialize(&mut account.data.as_ref()).ok()
+                let mut metadata_account = MetadataAccount::deserialize(&mut account.data.as_ref()).ok()?;
+                metadata_account.data.name = metadata_account.data.name.trim_end_matches('\0').to_string();
+                metadata_account.data.symbol = metadata_account.data.symbol.trim_end_matches('\0').to_string();
+                metadata_account.data.uri = metadata_account.data.uri.trim_end_matches('\0').to_string();
+                Some(metadata_account)
             })
             .filter_map(|metadata_account|metadata_account)
             .collect();
@@ -235,5 +239,23 @@ mod tests {
         let pubkeys = account_reader.addresses_to_pubkeys(addresses);
         let fetch_and_parse_accounts_result = account_reader.get_easy_solana_accounts(&pubkeys);
         assert!(fetch_and_parse_accounts_result.is_err());
+    }
+
+    #[test]
+    fn get_metadata_of_tokens() {
+        let addresses: Vec<String> = 
+        vec![
+            PNUT_TOKEN_ADDRESS,
+            WALLET_ADDRESS
+        ].iter_mut()
+        .map(|address| address.to_string())
+        .collect();
+
+        let client = create_rpc_client("RPC_URL");
+        let account_reader = AccountReader::new(client);
+        let pubkeys = account_reader.addresses_to_pubkeys(addresses);
+        let metadata_of_tokens = account_reader.get_metadata_of_tokens(&pubkeys).expect("Failed to fetch accounts");
+        assert!(metadata_of_tokens.len() == 1);
+        assert!(metadata_of_tokens[0].mint.to_string() == PNUT_TOKEN_ADDRESS.to_string())
     }
 }
