@@ -74,26 +74,27 @@ mod tests {
     use crate::create_rpc_client;
     use super::*;
 
-    #[test]
-    fn read_valid_addresses() {
-        // Valid addresses
-        let pumpfun_address = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P".to_string();
-        let pnut_token_address = "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump".to_string();
-        let wallet_address = "G2YxRa6wt1qePMwfJzdXZG62ej4qaTC7YURzuh2Lwd3t".to_string();
-        let token_account_address = "9Ru8UbszAJnhJpxwXktroHuvfWTHpBN57NHgyLXMw1g".to_string();
-        // Invalid account
-        let closed_account_address = "7o2B9chozpRvHsLgm1Qp3UV9NrS7bx7NH3BZKSePtHEh".to_string();
-        // Invalid addresses
-        let invalid_address = "thisisaninvalidaddress".to_string();
+    // Define global constants for the test addresses
+    const PUMPFUN_PROGRAM_ADDRESS: &str = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
+    const PNUT_TOKEN_ADDRESS: &str = "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump";
+    const WALLET_ADDRESS: &str = "G2YxRa6wt1qePMwfJzdXZG62ej4qaTC7YURzuh2Lwd3t";
+    const TOKEN_ACCOUNT_ADDRESS: &str = "9Ru8UbszAJnhJpxwXktroHuvfWTHpBN57NHgyLXMw1g";
+    const CLOSED_ACCOUNT_ADDRESS: &str = "7o2B9chozpRvHsLgm1Qp3UV9NrS7bx7NH3BZKSePtHEh";
+    const INVALID_ADDRESS: &str = "thisisaninvalidaddress";
 
-        let addresses: Vec<String> = vec![
-            pumpfun_address, 
-            pnut_token_address, 
-            wallet_address, 
-            token_account_address, 
-            closed_account_address,
-            invalid_address
-        ];
+    #[test]
+    fn read_fetch_and_parse_addresses() {
+        let addresses: Vec<String> = 
+        vec![
+            PUMPFUN_PROGRAM_ADDRESS, 
+            PNUT_TOKEN_ADDRESS, 
+            WALLET_ADDRESS, 
+            TOKEN_ACCOUNT_ADDRESS, 
+            CLOSED_ACCOUNT_ADDRESS,
+            INVALID_ADDRESS
+        ].iter_mut()
+        .map(|address| address.to_string())
+        .collect();
 
         let client = create_rpc_client("RPC_URL");
         let account_reader = AccountReader::new(client);
@@ -109,5 +110,26 @@ mod tests {
             assert!(account.pubkey.to_bytes().len() == 32); 
             assert!(account.owner.to_bytes().len() == 32);
         }
+    }
+
+    #[test]
+    fn invalid_rpc_url_should_fail() {
+        let pumpfun_address = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P".to_string();
+        let pnut_token_address = "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump".to_string();
+        let wallet_address = "G2YxRa6wt1qePMwfJzdXZG62ej4qaTC7YURzuh2Lwd3t".to_string();
+        let token_account_address = "9Ru8UbszAJnhJpxwXktroHuvfWTHpBN57NHgyLXMw1g".to_string();
+
+        let addresses: Vec<String> = vec![
+            pumpfun_address, 
+            pnut_token_address, 
+            wallet_address, 
+            token_account_address, 
+        ];
+
+        let client = create_rpc_client("INVALID_RPC_URL");
+        let account_reader = AccountReader::new(client);
+        let pubkeys = account_reader.addresses_to_pubkeys(addresses);
+        let fetch_and_parse_accounts_result = account_reader.fetch_and_parse_accounts(&pubkeys);
+        assert!(fetch_and_parse_accounts_result.is_err());
     }
 }
