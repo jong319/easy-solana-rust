@@ -36,3 +36,29 @@ pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> K
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use solana_sdk::signer::Signer;
+    use super::*;
+
+    #[test]
+    fn generate_keypair_that_starts_with_ab() {
+        let ab_keypair = generate_keypair(Some("ab"), None);
+        assert!(ab_keypair.pubkey().to_string().starts_with("ab"))
+    }
+
+    #[test]
+    fn generate_keypair_that_ends_with_yz() {
+        let yz_keypair = generate_keypair(None, Some("yz"));
+        assert!(yz_keypair.pubkey().to_string().ends_with("yz"))
+    }
+
+    #[test]
+    fn generate_keypair_that_starts_with_a_ends_with_z() {
+        let az_keypair = generate_keypair(Some("a"), Some("z"));
+        assert!(az_keypair.pubkey().to_string().starts_with("a"));
+        assert!(az_keypair.pubkey().to_string().ends_with("z"));
+    }
+}
