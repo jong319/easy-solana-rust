@@ -1,10 +1,12 @@
 use solana_sdk::{
-    clock::Epoch, native_token::LAMPORTS_PER_SOL, program_pack::Pack, pubkey::Pubkey
+   native_token::LAMPORTS_PER_SOL, 
+   program_pack::Pack, 
+   pubkey::Pubkey
 };
 use solana_client::rpc_client::RpcClient;
 use spl_token::state::{ 
     Account as AssociatedTokenAccount,
-    Mint,
+    Mint
 };
 use borsh::{
     BorshDeserialize,
@@ -15,38 +17,13 @@ use crate::{
         system_program,
         token_program
     }, 
+    reader::easy_solana_account::{
+        EasySolanaAccount,
+        AccountType,
+    },
     error::AccountReaderError, 
     solana_programs::metadata_program,
 };
-
-
-/// Convenience interpretation of a basic solana account, containing all the important variables and information.
-/// Use the relevant schemas to decode data variable if needed.
-#[derive(Debug)]
-pub struct EasySolanaAccount {
-    pub pubkey: Pubkey,
-    /// balance is in SOL, not lamports
-    pub sol_balance: f64,
-    pub account_type: AccountType,
-    pub owner: Pubkey,
-    pub executable: bool,
-    pub rent_epoch: Epoch,
-    pub data: Vec<u8>,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum AccountType {
-    /// A program account is executable
-    Program,
-    /// A wallet account is owned by the system program
-    Wallet,
-    /// An associated token account
-    AssociatedTokenAccount,
-    /// An mint account
-    MintAccount,
-    /// Unknown account type
-    Others
-}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct MetadataAccount {
@@ -64,6 +41,7 @@ pub struct Metadata {
     pub symbol: String,
     pub uri: String,
 }
+
 
 pub struct AccountReader {
     client: RpcClient
@@ -125,7 +103,7 @@ impl AccountReader {
         Ok(easy_accounts)
     }
 
-    /// Fetches the metadata accounts given a slice of Pubkeys, deserializing their data and returning `Vec<MetadataAccount>`.
+    /// Fetches the metadata accounts given a slice of token Pubkeys, deserializing their data and returning `Vec<MetadataAccount>`.
     /// Invalid accounts and metadata that cannot be deserialized are removed. If RPC client fails to fetch data, returns a `AccountReaderError`.
     pub fn get_metadata_of_tokens(&self, token_pubkeys: &[Pubkey]) -> Result<Vec<MetadataAccount>, AccountReaderError> {
         let metadata_program = metadata_program();
@@ -158,8 +136,6 @@ impl AccountReader {
         Ok(data_of_metadata_accounts)
     }
 }
-
-
 
 
 

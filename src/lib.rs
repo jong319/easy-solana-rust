@@ -8,7 +8,10 @@ pub use utils::{
 mod reader;
 pub use reader::{
     account::AccountReader,
-    account::EasySolanaAccount,
+    easy_solana_account::{
+        EasySolanaAccount,
+        get_associated_token_accounts,
+    }
 };
 
 mod constants;
