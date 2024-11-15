@@ -14,7 +14,9 @@ use crate::{
     constants::solana_programs::{
         system_program,
         token_program
-    }, error::AccountReaderError, solana_programs::metadata_program
+    }, 
+    error::AccountReaderError, 
+    solana_programs::metadata_program,
 };
 
 
@@ -38,9 +40,9 @@ pub enum AccountType {
     Program,
     /// A wallet account is owned by the system program
     Wallet,
-    /// An associated token account has the relevant data
+    /// An associated token account
     AssociatedTokenAccount,
-    /// An mint account has the relevant data
+    /// An mint account
     MintAccount,
     /// Unknown account type
     Others
@@ -73,14 +75,6 @@ impl AccountReader {
         Self {
             client
         }
-    }
-
-    /// Reads a `Vec<String>` of addresses to `Vec<Pubkey>`, invalid addresses are removed.
-    pub fn addresses_to_pubkeys(&self, addresses: Vec<String>) -> Vec<Pubkey> {
-        addresses
-            .into_iter()
-            .filter_map(|addr| addr.parse::<Pubkey>().ok())
-            .collect()
     }
 
     /// Fetches and parses accounts given a slice of Pubkeys, returning a Vec<EasySolanaAccount>. 
@@ -171,7 +165,10 @@ impl AccountReader {
 
 #[cfg(test)]
 mod tests {
-    use crate::create_rpc_client;
+    use crate::{
+        create_rpc_client,
+        addresses_to_pubkeys
+    };
     use super::*;
 
     // Valid Addresses
@@ -199,8 +196,9 @@ mod tests {
         .collect();
 
         let client = create_rpc_client("RPC_URL");
+        // Convert String addresses to Pubkeys
+        let pubkeys = addresses_to_pubkeys(addresses);
         let account_reader = AccountReader::new(client);
-        let pubkeys = account_reader.addresses_to_pubkeys(addresses);
         // 5 valid addresses
         assert!(pubkeys.len() == 5);
         let easy_solana_accounts = account_reader.get_easy_solana_accounts(&pubkeys).expect("Failed to fetch accounts");
@@ -235,8 +233,8 @@ mod tests {
         .collect();
 
         let client = create_rpc_client("INVALID_RPC_URL");
+        let pubkeys = addresses_to_pubkeys(addresses);
         let account_reader = AccountReader::new(client);
-        let pubkeys = account_reader.addresses_to_pubkeys(addresses);
         let fetch_and_parse_accounts_result = account_reader.get_easy_solana_accounts(&pubkeys);
         assert!(fetch_and_parse_accounts_result.is_err());
     }
@@ -252,8 +250,8 @@ mod tests {
         .collect();
 
         let client = create_rpc_client("RPC_URL");
+        let pubkeys = addresses_to_pubkeys(addresses);
         let account_reader = AccountReader::new(client);
-        let pubkeys = account_reader.addresses_to_pubkeys(addresses);
         let metadata_of_tokens = account_reader.get_metadata_of_tokens(&pubkeys).expect("Failed to fetch accounts");
         assert!(metadata_of_tokens.len() == 1);
         assert!(metadata_of_tokens[0].mint.to_string() == PNUT_TOKEN_ADDRESS.to_string())

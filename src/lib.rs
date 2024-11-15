@@ -1,7 +1,8 @@
 mod utils;
 pub use utils::{
     generate_keypair,
-    create_rpc_client
+    create_rpc_client,
+    addresses_to_pubkeys
 };
 
 mod reader;

@@ -1,7 +1,8 @@
 use solana_sdk::{
     signature::Keypair,
     signer::Signer,
-    commitment_config::CommitmentConfig
+    commitment_config::CommitmentConfig,
+    pubkey::Pubkey,
 };
 use solana_client::rpc_client::RpcClient;
 
@@ -70,6 +71,13 @@ pub fn create_rpc_client(rpc_input: &str) -> RpcClient {
     RpcClient::new_with_commitment(rpc_url, CommitmentConfig::confirmed())
 }
 
+/// Reads a `Vec<String>` of addresses to `Vec<Pubkey>`, invalid addresses are removed.
+pub fn addresses_to_pubkeys(addresses: Vec<String>) -> Vec<Pubkey> {
+    addresses
+        .into_iter()
+        .filter_map(|addr| addr.parse::<Pubkey>().ok())
+        .collect()
+}
 
 #[cfg(test)]
 mod tests {
