@@ -7,13 +7,18 @@ pub use utils::{
 
 mod reader;
 pub use reader::{
-    account::AccountReader,
     easy_solana_account::{
         EasySolanaAccount,
-        EasySolanaAssociatedTokenAccount,
-        EasySolanaMintAccount,
-        filter_associated_token_accounts,
-        filter_mint_accounts,
+        get_easy_solana_account,
+        get_easy_solana_accounts,
+        AssociatedTokenAccountDetails,
+        MintAccountDetails
+    },
+    metadata_account::{
+        Metadata,
+        MetadataAccount,
+        get_metadata_of_token,
+        get_metadata_of_tokens,
     }
 };
 
