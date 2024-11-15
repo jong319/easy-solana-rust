@@ -23,6 +23,8 @@ use crate::{
     solana_programs::metadata_program,
 };
 
+
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct MetadataAccount {
     pub key: u8,
@@ -39,7 +41,6 @@ pub struct Metadata {
     pub symbol: String,
     pub uri: String,
 }
-
 
 pub struct AccountReader {
     client: RpcClient
@@ -208,7 +209,7 @@ impl AccountReader {
 mod tests {
     use crate::{
         create_rpc_client,
-        addresses_to_pubkeys
+        addresses_to_pubkeys,
     };
     use super::*;
 
@@ -223,7 +224,7 @@ mod tests {
     const INVALID_ADDRESS: &str = "thisisaninvalidaddress";
 
     #[test]
-    fn get_easy_solana_accounts_from_addresses() {
+    fn test_get_easy_solana_accounts() {
         let addresses: Vec<String> = 
         vec![
             PUMPFUN_PROGRAM_ADDRESS, 
@@ -262,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn invalid_rpc_url_should_fail() {
+    fn failing_test_invalid_rpc_url() {
         let addresses: Vec<String> = 
         vec![
             PUMPFUN_PROGRAM_ADDRESS, 
@@ -281,7 +282,7 @@ mod tests {
     }
 
     #[test]
-    fn get_metadata_of_tokens() {
+    fn test_get_metadata_of_tokens() {
         let addresses: Vec<String> = 
         vec![
             PNUT_TOKEN_ADDRESS,

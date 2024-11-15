@@ -85,26 +85,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_keypair_that_starts_with_ab() {
+    fn test_generate_keypair_that_starts_with_ab() {
         let ab_keypair = generate_keypair(Some("ab"), None).unwrap();
         assert!(ab_keypair.pubkey().to_string().starts_with("ab"))
     }
 
     #[test]
-    fn generate_keypair_that_ends_with_yz() {
+    fn test_generate_keypair_that_ends_with_yz() {
         let yz_keypair = generate_keypair(None, Some("yz")).unwrap();
         assert!(yz_keypair.pubkey().to_string().ends_with("yz"))
     }
 
     #[test]
-    fn generate_keypair_that_starts_with_a_ends_with_z() {
+    fn test_generate_keypair_that_starts_with_a_ends_with_z() {
         let az_keypair = generate_keypair(Some("a"), Some("z")).unwrap();
         assert!(az_keypair.pubkey().to_string().starts_with("a"));
         assert!(az_keypair.pubkey().to_string().ends_with("z"));
     }
 
     #[test]
-    fn generate_keypair_with_invalid_pattern() {
+    fn test_generate_keypair_with_invalid_pattern() {
         let invalid_keypair = generate_keypair(Some("i"), Some("0"));
         assert!(invalid_keypair.is_err());
     }

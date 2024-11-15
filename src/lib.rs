@@ -10,7 +10,10 @@ pub use reader::{
     account::AccountReader,
     easy_solana_account::{
         EasySolanaAccount,
-        get_associated_token_accounts,
+        EasySolanaAssociatedTokenAccount,
+        EasySolanaMintAccount,
+        filter_associated_token_accounts,
+        filter_mint_accounts,
     }
 };
 
