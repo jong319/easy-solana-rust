@@ -1,7 +1,5 @@
 use solana_sdk::{
-   native_token::LAMPORTS_PER_SOL, 
-   program_pack::Pack, 
-   pubkey::Pubkey
+   native_token::LAMPORTS_PER_SOL, program_pack::Pack, pubkey::Pubkey
 };
 use solana_client::rpc_client::RpcClient;
 use spl_token::state::{ 
@@ -55,6 +53,43 @@ impl AccountReader {
         }
     }
 
+    /// Fetches and parses an account given a pubkey, returning a EasySolanaAccount. 
+    /// Invalid account and if RPC client fails to fetch data, returns a `AccountReaderError`
+    pub fn get_easy_solana_account(&self, pubkey: &Pubkey) -> Result<EasySolanaAccount, AccountReaderError> {
+        // Fetch account data 
+        let account = self.client
+            .get_account(pubkey)
+            .map_err(AccountReaderError::from)?;
+
+        // Determine the account type
+        let account_type = if account.executable {
+            AccountType::Program
+        } else if account.owner == system_program() {
+            AccountType::Wallet
+        } else if account.owner == token_program() {
+            // Try to unpack as TokenAccount or MintAccount
+            if let Ok(_) = AssociatedTokenAccount::unpack(&account.data) {
+                AccountType::AssociatedTokenAccount
+            } else if let Ok(_) = Mint::unpack(&account.data) {
+                AccountType::MintAccount
+            } else {
+                AccountType::Others
+            }
+        } else {
+            AccountType::Others
+        };
+
+        Ok(EasySolanaAccount {
+            pubkey: *pubkey,
+            sol_balance: account.lamports as f64 / LAMPORTS_PER_SOL as f64, // Convert lamports to SOL
+            account_type,
+            owner: account.owner,
+            executable: account.executable,
+            rent_epoch: account.rent_epoch,
+            data: account.data,
+        })
+    }
+
     /// Fetches and parses accounts given a slice of Pubkeys, returning a Vec<EasySolanaAccount>. 
     /// Invalid accounts are removed. If RPC client fails to fetch data, returns a `AccountReaderError`
     pub fn get_easy_solana_accounts(&self, pubkeys: &[Pubkey]) -> Result<Vec<EasySolanaAccount>, AccountReaderError> {
@@ -103,6 +138,32 @@ impl AccountReader {
         Ok(easy_accounts)
     }
 
+    /// Fetches the metadata account given a token Pubkey, deserializing their data and returning `MetadataAccount`.
+    /// Invalid account, metadata that cannot be deserialized and if RPC client fails to fetch data, return a `AccountReaderError`.
+    pub fn get_metadata_of_token(&self, token_pubkey: &Pubkey) -> Result<MetadataAccount, AccountReaderError> {
+        let metadata_program = metadata_program();
+        // Get pubkey of the token's metadata account by deriving it from their seed
+        let seed = &[b"metadata", metadata_program.as_ref(), token_pubkey.as_ref()];
+        let (metadata_pubkey, _nonce) = Pubkey::find_program_address(seed, &metadata_program);
+
+        // Fetch account data and handle errors
+        let metadata_account = self.client
+            .get_account(&metadata_pubkey)
+            .map_err(AccountReaderError::from)?;
+
+        // Deserialize account data
+        let mut deserialized_metadata_account = 
+            MetadataAccount::deserialize(&mut metadata_account.data.as_ref())
+            .map_err(|_| AccountReaderError::DeserializeError)?;
+
+        // Trim paddings
+        deserialized_metadata_account.data.name = deserialized_metadata_account.data.name.trim_end_matches('\0').to_string();
+        deserialized_metadata_account.data.symbol = deserialized_metadata_account.data.symbol.trim_end_matches('\0').to_string();
+        deserialized_metadata_account.data.uri = deserialized_metadata_account.data.uri.trim_end_matches('\0').to_string();
+
+        Ok(deserialized_metadata_account)
+    }
+
     /// Fetches the metadata accounts given a slice of token Pubkeys, deserializing their data and returning `Vec<MetadataAccount>`.
     /// Invalid accounts and metadata that cannot be deserialized are removed. If RPC client fails to fetch data, returns a `AccountReaderError`.
     pub fn get_metadata_of_tokens(&self, token_pubkeys: &[Pubkey]) -> Result<Vec<MetadataAccount>, AccountReaderError> {
@@ -117,10 +178,14 @@ impl AccountReader {
             })
             .collect();
     
-        // Fetch the metadata accounts and deserialize them
-        let data_of_metadata_accounts: Vec<MetadataAccount> = self.client
-            .get_multiple_accounts(&pubkeys_of_metadata_account)
-            .map_err(AccountReaderError::from)?
+        // Fetch the metadata accounts
+        let metadata_accounts_result = self.client.get_multiple_accounts(&pubkeys_of_metadata_account);
+
+        // handle errors in fetching account
+        let metadata_accounts = metadata_accounts_result.map_err(AccountReaderError::from)?;
+
+        // deserialize accounts 
+        let data_of_metadata_accounts: Vec<MetadataAccount> = metadata_accounts
             .into_iter()
             .filter_map(|account_option| account_option)
             .map(|account| {
@@ -229,6 +294,7 @@ mod tests {
         let pubkeys = addresses_to_pubkeys(addresses);
         let account_reader = AccountReader::new(client);
         let metadata_of_tokens = account_reader.get_metadata_of_tokens(&pubkeys).expect("Failed to fetch accounts");
+        // Only PNUT_TOKEN_ADDRESS account contains metadata 
         assert!(metadata_of_tokens.len() == 1);
         assert!(metadata_of_tokens[0].mint.to_string() == PNUT_TOKEN_ADDRESS.to_string())
     }

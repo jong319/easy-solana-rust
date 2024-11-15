@@ -54,8 +54,29 @@ pub struct EasySolanaAssociatedTokenAccount {
     pub close_authority: Option<Pubkey>,
 }
 
+impl EasySolanaAccount {
+    /// Converts an `EasySolanaAccount` to an `EasySolanaAssociatedTokenAccount` if 
+    /// `AccountType::AssociatedTokenAccount` otherwise returns None
+    pub fn get_associated_token_account(&self) -> Option<EasySolanaAssociatedTokenAccount> {
+        if self.account_type == AccountType::AssociatedTokenAccount {
+            let associated_token_account = AssociatedTokenAccount::unpack(&self.data).ok()?;
+            Some(EasySolanaAssociatedTokenAccount {
+                pubkey: self.pubkey,
+                sol_balance: self.sol_balance,
+                mint_address: associated_token_account.mint,
+                token_balance: associated_token_account.amount,
+                owner: associated_token_account.owner,
+                state: associated_token_account.state,
+                close_authority: associated_token_account.close_authority.into(),
+            });
+        };
+        None
+    }
+}
 
-/// Filters associated token accounts from a `Vec<EasySolanaAccount>` and returns Easy Solana's Associated Token Account struct
+
+/// Filters associated token accounts from a `Vec<EasySolanaAccount>` and returns Easy Solana's Associated Token Account struct.
+/// Non associated token account types are filtered out and removed. 
 pub fn get_associated_token_accounts(accounts: &Vec<EasySolanaAccount>) -> Vec<EasySolanaAssociatedTokenAccount> {
 accounts
     .iter()

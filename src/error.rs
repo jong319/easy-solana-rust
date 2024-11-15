@@ -5,6 +5,8 @@ use solana_client::client_error::ClientError as RpcClientError;
 pub enum AccountReaderError {
     #[error("Failed to fetch multiple accounts: {0}")]
     RpcClientError(#[from] RpcClientError),
+    #[error("Unable to deserialize account data according to schema")]
+    DeserializeError,
 }
 
 #[derive(Error, Debug)]
