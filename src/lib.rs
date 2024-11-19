@@ -1,31 +1,22 @@
-mod utils;
+pub mod utils;
 pub use utils::{
     generate_keypair,
-    create_rpc_client,
-    addresses_to_pubkeys
+    create_rpc_client
 };
 
-mod reader;
+pub mod reader;
 pub use reader::{
-    easy_solana_account::{
-        EasySolanaAccount,
-        get_easy_solana_account,
-        get_easy_solana_accounts,
-        AssociatedTokenAccountDetails,
-        MintAccountDetails
-    },
+    easy_solana_accounts::account::EasySolanaAccount,
     metadata_account::{
         Metadata,
         MetadataAccount,
-        get_metadata_of_token,
-        get_metadata_of_tokens,
     }
 };
 
-mod constants;
+pub mod constants;
 pub use constants::{
     solana_programs,
     pumpfun_accounts
 };
 
-mod error;
+pub mod error;

@@ -1,8 +1,5 @@
 use solana_sdk::{
-    signature::Keypair,
-    signer::Signer,
-    commitment_config::CommitmentConfig,
-    pubkey::Pubkey,
+    commitment_config::CommitmentConfig, pubkey::{ParsePubkeyError, Pubkey}, signature::Keypair, signer::Signer
 };
 use solana_client::rpc_client::RpcClient;
 
@@ -77,6 +74,10 @@ pub fn addresses_to_pubkeys(addresses: Vec<String>) -> Vec<Pubkey> {
         .into_iter()
         .filter_map(|addr| addr.parse::<Pubkey>().ok())
         .collect()
+}
+
+pub fn address_to_pubkey(address: String) -> Result<Pubkey, ParsePubkeyError> {
+    address.parse::<Pubkey>()
 }
 
 #[cfg(test)]

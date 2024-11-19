@@ -1,12 +1,17 @@
 use thiserror::Error;
 use solana_client::client_error::ClientError as RpcClientError;
+use solana_sdk::pubkey::ParsePubkeyError;
 
 #[derive(Error, Debug)]
 pub enum AccountReaderError {
-    #[error("Failed to fetch multiple accounts: {0}")]
+    #[error("Invalid Address")]
+    InvalidAddress(#[from]ParsePubkeyError),
+    #[error("Failed to fetch account: {0}")]
     RpcClientError(#[from] RpcClientError),
     #[error("Unable to deserialize account data according to schema")]
     DeserializeError,
+    #[error("Account does not exist")]
+    AccountNotFound
 }
 
 #[derive(Error, Debug)]
