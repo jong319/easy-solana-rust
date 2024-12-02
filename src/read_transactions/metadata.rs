@@ -5,9 +5,11 @@ use borsh::{
     BorshSerialize
 };
 use crate::{
-    error::AccountReaderError, 
-    solana_programs::metadata_program, utils::{address_to_pubkey, addresses_to_pubkeys},
+    solana_programs::metadata_program, 
+    utils::{address_to_pubkey, addresses_to_pubkeys},
+    error::ReadTransactionError
 };
+
 
  #[derive(BorshSerialize, BorshDeserialize, Debug)]
  pub struct MetadataAccount {
@@ -27,27 +29,25 @@ use crate::{
  }
 
 
-/// Fetches the metadata account given a token Pubkey, deserializing their data and returning `MetadataAccount`. 
+/// Fetches the metadata account given a token address, deserializing their data and returning `MetadataAccount`. 
 /// Paddings in token name, symbol and uri are trimmed.
 /// ## Errors
 /// Non existent account or if RPC client fails to fetch data, return a [`AccountReaderError::RpcClientError`].
 /// Metadata accounts that cannot be deserialized returns a [`AccountReaderError::DeserializeError`].
-pub fn get_metadata_of_token(client: &RpcClient, token_address: String) -> Result<MetadataAccount, AccountReaderError> {
+pub fn get_metadata_of_token(client: &RpcClient, token_address: &str) -> Result<MetadataAccount, ReadTransactionError> {
     let token_pubkey = address_to_pubkey(token_address)?;
     let metadata_program = metadata_program();
     // Get pubkey of the token's metadata account by deriving it from their seed
     let seed = &[b"metadata", metadata_program.as_ref(), token_pubkey.as_ref()];
     let (metadata_pubkey, _nonce) = Pubkey::find_program_address(seed, &metadata_program);
 
-    // Fetch account data and handle errors
-    let metadata_account = client
-        .get_account(&metadata_pubkey)
-        .map_err(AccountReaderError::from)?;
+    // Fetch account data
+    let metadata_account = client.get_account(&metadata_pubkey)?;
 
     // Deserialize account data
     let mut deserialized_metadata_account = 
         MetadataAccount::deserialize(&mut metadata_account.data.as_ref())
-        .map_err(|_| AccountReaderError::DeserializeError)?;
+        .map_err(|_| ReadTransactionError::DeserializeError)?;
 
     // Trim paddings
     deserialized_metadata_account.data.name = deserialized_metadata_account.data.name.trim_end_matches('\0').to_string();
@@ -62,7 +62,7 @@ pub fn get_metadata_of_token(client: &RpcClient, token_address: String) -> Resul
 /// ## Errors
 /// If RPC client fails to fetch data, return a [`AccountReaderError::RpcClientError`].
 /// Metadata accounts that cannot be deserialized or non existent accounts are filtered out.
-pub fn get_metadata_of_tokens(client: &RpcClient, token_addresses: Vec<String>) -> Result<Vec<MetadataAccount>, AccountReaderError> {
+pub fn get_metadata_of_tokens(client: &RpcClient, token_addresses: Vec<&str>) -> Result<Vec<MetadataAccount>, ReadTransactionError> {
     let token_pubkeys = addresses_to_pubkeys(token_addresses);
     let metadata_program = metadata_program();
     // Get the pubkeys of the token's metadata accounts by deriving it from their seed
@@ -76,10 +76,7 @@ pub fn get_metadata_of_tokens(client: &RpcClient, token_addresses: Vec<String>) 
         .collect();
 
     // Fetch the metadata accounts
-    let metadata_accounts_result = client.get_multiple_accounts(&pubkeys_of_metadata_account);
-
-    // handle errors in fetching account
-    let metadata_accounts = metadata_accounts_result.map_err(AccountReaderError::from)?;
+    let metadata_accounts = client.get_multiple_accounts(&pubkeys_of_metadata_account)?;
 
     // deserialize accounts 
     let data_of_metadata_accounts: Vec<MetadataAccount> = metadata_accounts
@@ -110,7 +107,7 @@ mod tests {
     #[test]
     fn test_get_metadata_of_tokens() {
         let client = create_rpc_client("RPC_URL");
-        let metadata_of_tokens = get_metadata_of_tokens(&client, vec![PNUT_TOKEN_ADDRESS.to_string()]).expect("Failed to fetch accounts");
+        let metadata_of_tokens = get_metadata_of_tokens(&client, vec![PNUT_TOKEN_ADDRESS]).expect("Failed to fetch accounts");
         assert!(metadata_of_tokens.len() == 1);
         let pnut_metadata = &metadata_of_tokens[0];
         assert!(pnut_metadata.mint.to_string() == PNUT_TOKEN_ADDRESS.to_string());

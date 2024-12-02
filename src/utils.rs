@@ -69,14 +69,14 @@ pub fn create_rpc_client(rpc_input: &str) -> RpcClient {
 }
 
 /// Reads a `Vec<String>` of addresses to `Vec<Pubkey>`, invalid addresses are removed.
-pub fn addresses_to_pubkeys(addresses: Vec<String>) -> Vec<Pubkey> {
+pub fn addresses_to_pubkeys(addresses: Vec<&str>) -> Vec<Pubkey> {
     addresses
         .into_iter()
         .filter_map(|addr| addr.parse::<Pubkey>().ok())
         .collect()
 }
 
-pub fn address_to_pubkey(address: String) -> Result<Pubkey, ParsePubkeyError> {
+pub fn address_to_pubkey(address: &str) -> Result<Pubkey, ParsePubkeyError> {
     address.parse::<Pubkey>()
 }
 
