@@ -2,7 +2,7 @@
 name = "easy_solana"
 version = "0.1.0"
 edition = "2021"
-authors = "jong319"
+authors = ["jong319"]
 description = "EasySolana simplifies querying data and writing transactions on the Solana blockchain network."
 
 
