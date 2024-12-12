@@ -58,12 +58,12 @@ pub struct AssociatedTokenAccount {
 ///     Err(err) => println!("Invalid wallet or mint address: {:?}", err)
 /// }
 /// ```
-pub fn derive_associated_token_account_address(wallet_address: &str, mint_address: &str) -> Result<String, ReadTransactionError> {
+pub fn derive_associated_token_account_address(wallet_address: &str, mint_address: &str) -> Result<String, ParsePubkeyError> {
     let addresses = vec![wallet_address, mint_address];
     let pubkeys = addresses_to_pubkeys(addresses);
     // checks that pubkeys len == 2 else input wallet / mint address is invalid. 
     if pubkeys.len() != 2 {
-        return Err(ReadTransactionError::InvalidAddress(ParsePubkeyError::Invalid))
+        return Err(ParsePubkeyError::Invalid)
     }
     let (associated_token_account_pubkey, _nonce) = Pubkey::find_program_address(
         &[
@@ -317,8 +317,8 @@ mod tests {
     use super::*;
     use crate::utils::create_rpc_client;
 
-    const ASSOCIATED_MICHI_WALLET_ADDRESS: &str = "7ijJJn37C97ZhYSpFbh1CtB8Vvay6LedujjnAjRdBJ7z";
-    const MICHI_MINT_ADDRESS: &str = "5mbK36SZ7J19An8jFochhQS4of8g6BwUjbeCSxBSoWdp";
+    const ASSOCIATED_MICHI_WALLET_ADDRESS: &str = "7geCZYWHtghvWj11sb7exvu4uMANfhvGvEvVRRZ8GmSd";
+    const MICHI_MINT_ADDRESS: &str = "ArDKWeAhQj3LDSo2XcxTUb5j68ZzWg21Awq97fBppump";
     const WALLET_ADDRESS: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
     
     #[test]

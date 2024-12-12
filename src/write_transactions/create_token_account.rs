@@ -23,7 +23,8 @@ pub fn construct_create_token_account_transaction(
         fee_account: &str, 
         referral_fee: f64, 
         referral_fee_account: &str, 
-        compute_units: u32
+        compute_limit: u32,
+        compute_units: u64
     ) -> Result<Transaction, WriteTransactionError> {
     // token mint account - mint 
     let token_account = address_to_pubkey(token_address)?;
@@ -46,11 +47,11 @@ pub fn construct_create_token_account_transaction(
     let mut instructions = vec![];
 
      // Compute Budget: SetComputeUnitLimit
-     let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_units);
+     let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_limit);
      instructions.push(set_compute_unit_limit);
  
      // Compute Budget: SetComputeUnitPrice
-     let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(333_333);
+     let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
      instructions.push(set_compute_unit_price);
 
     if fee > 0.0 {
@@ -125,7 +126,8 @@ mod tests {
             fee_account,
             0.0,
             referral_fee_account,
-            2_000_000
+            2_000_000,
+            111_111
         ).expect("Failed to construct create_token_account transaction");
 
         let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");

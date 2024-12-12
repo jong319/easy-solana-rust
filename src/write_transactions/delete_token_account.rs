@@ -25,7 +25,8 @@ pub fn construct_burn_and_delete_token_accounts_transaction(
         token_addresses: Vec<&str>, 
         rent_recipient: &str, 
         force_delete: Option<bool>, 
-        compute_units: u32
+        compute_limit: u32,
+        compute_units: u64
     ) -> Result<Transaction, WriteTransactionError> {
     let force_delete = force_delete.unwrap_or(false);
     // token mint accounts
@@ -58,11 +59,11 @@ pub fn construct_burn_and_delete_token_accounts_transaction(
     let mut instructions = vec![];
 
     // Compute Budget: SetComputeUnitLimit
-    let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_units);
+    let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_limit);
     instructions.push(set_compute_unit_limit);
 
     // Compute Budget: SetComputeUnitPrice
-    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(333_333);
+    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
     instructions.push(set_compute_unit_price); 
 
     for account in associated_token_accounts {
@@ -150,7 +151,8 @@ mod tests {
             token_addresses.iter().map(|x| x.as_str()).collect(), 
             RECIPIENT_ADDRESS, 
             Some(true),
-            2_000_000
+            2_000_000,
+            111_111
         ).expect("Unable to construct transaction: {:?}");
 
         let simulation_result = simulate_transaction(&client, burn_and_delete_transaction).expect("Failed to simulate transaction");

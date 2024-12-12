@@ -47,6 +47,14 @@ pub enum WriteTransactionError {
 }
 
 #[derive(Error, Debug)]
+pub enum TransactionBuilderError {
+    #[error("Invalid Address")]
+    InvalidAddress(#[from]ParsePubkeyError),
+    #[error("Unable to get latest blockhash")]
+    LatestBlockhashError,
+}
+
+#[derive(Error, Debug)]
 pub enum SimulationError {
     #[error("Client Error: {0}")]
     RpcClientError(#[from]RpcClientError),

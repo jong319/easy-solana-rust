@@ -28,7 +28,8 @@ pub async fn construct_bump_pump_token_transaction(
     base58_keypair: &str, 
     token_address: &str, 
     max_sol_cost: f64,
-    compute_limit: u32
+    compute_limit: u32,
+    compute_units: u64,
 ) -> Result<Transaction, WriteTransactionError> {
     // Define accounts involved
     let token_account = address_to_pubkey(&token_address)?;
@@ -92,7 +93,7 @@ pub async fn construct_bump_pump_token_transaction(
     let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_limit);
 
     // Compute Budget: SetComputeUnitPrice
-    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(777_777);
+    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
 
         // get latest bonding curve account data
         let cost_per_token = calculate_token_price(&bonding_state)?;
@@ -157,13 +158,15 @@ mod tests {
         dotenv().ok();
         let private_key = env::var("PRIVATE_KEY").unwrap();
         let client = create_rpc_client("RPC_URL");
+        
         // associated token account must already be created
         let create_token_account_transaction = construct_bump_pump_token_transaction(
             &client, 
             &private_key, 
             TOKEN_ADDRESS, 
             0.02, 
-            2_000_000
+            2_000_000,
+            111_111
         )
         .await
         .expect("Failed to construct create_token_account transaction");

@@ -13,7 +13,14 @@ use solana_client::rpc_client::RpcClient;
 use crate::{error::WriteTransactionError, utils::address_to_pubkey};
 
 
-pub fn construct_transfer_sol_transaction(client: &RpcClient, signer_keypair: &str, recipient_address: &str, amount: f64, compute_units: u32) -> Result<Transaction, WriteTransactionError> {
+pub fn construct_transfer_sol_transaction(
+        client: &RpcClient, 
+        signer_keypair: &str, 
+        recipient_address: &str, 
+        amount: f64, 
+        compute_limit: u32,
+        compute_units: u64
+    ) -> Result<Transaction, WriteTransactionError> {
     let sender_keypair = Keypair::from_base58_string(signer_keypair);
     let sender_pubkey = sender_keypair.pubkey();
     let recipient_pubkey = address_to_pubkey(recipient_address)?;
@@ -25,11 +32,11 @@ pub fn construct_transfer_sol_transaction(client: &RpcClient, signer_keypair: &s
     let mut instructions = vec![];
 
     // Compute Budget: SetComputeUnitLimit
-    let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_units);
+    let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_limit);
     instructions.push(set_compute_unit_limit);
 
     // Compute Budget: SetComputeUnitPrice
-    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(333_333);
+    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
     instructions.push(set_compute_unit_price);
 
     // Transfer sol instruction
@@ -70,7 +77,8 @@ mod tests {
             &private_key, 
             RECIPIENT_ADDRESS, 
             0.001, 
-            450
+            450,
+            111_111
         ).expect("Failed to construct create_token_account transaction");
 
         let simulation_result = simulate_transaction(&client, transfer_sol_transaction).expect("Failed to simulate transaction");
