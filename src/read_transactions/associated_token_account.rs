@@ -38,6 +38,7 @@ pub struct AssociatedTokenAccount {
 /// 
 /// * `wallet_address` - address of wallet holding the token.
 /// * `mint_address` - address of the target token.
+/// * `token_program` - token program that corresponds to the token (e.g token2022 program)
 /// 
 /// # Returns
 /// 
@@ -49,16 +50,17 @@ pub struct AssociatedTokenAccount {
 /// 
 /// ```rust
 /// use easy_solana::read_transactions::associated_token_account::derive_associated_token_account_address;
+/// use easy_solana::constants::solana_programs::{token_2022_program, token_program};
 /// 
 /// let wallet_address = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
 /// let mint_address = "5mbK36SZ7J19An8jFochhQS4of8g6BwUjbeCSxBSoWdp";
-/// let result = derive_associated_token_account_address(wallet_address, mint_address);
+/// let result = derive_associated_token_account_address(wallet_address, mint_address, token_program());
 /// match result {
 ///     Ok(address) => println!("Associated Token Account Address: {:?}", address),
 ///     Err(err) => println!("Invalid wallet or mint address: {:?}", err)
 /// }
 /// ```
-pub fn derive_associated_token_account_address(wallet_address: &str, mint_address: &str) -> Result<String, ParsePubkeyError> {
+pub fn derive_associated_token_account_address(wallet_address: &str, mint_address: &str, token_program: Pubkey) -> Result<String, ParsePubkeyError> {
     let addresses = vec![wallet_address, mint_address];
     let pubkeys = addresses_to_pubkeys(addresses);
     // checks that pubkeys len == 2 else input wallet / mint address is invalid. 
@@ -68,7 +70,7 @@ pub fn derive_associated_token_account_address(wallet_address: &str, mint_addres
     let (associated_token_account_pubkey, _nonce) = Pubkey::find_program_address(
         &[
             &pubkeys[0].to_bytes(),
-            &token_program().to_bytes(),
+            &token_program.to_bytes(),
             &pubkeys[1].to_bytes(),
         ],
         &associated_token_account_program(),
@@ -98,10 +100,11 @@ pub fn derive_associated_token_account_address(wallet_address: &str, mint_addres
 ///     },
 ///     utils::create_rpc_client
 /// };
+/// use easy_solana::constants::solana_programs::{token_2022_program, token_program};
 /// 
 /// let wallet_address = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
 /// let mint_address = "5mbK36SZ7J19An8jFochhQS4of8g6BwUjbeCSxBSoWdp";
-/// let result = derive_associated_token_account_address(wallet_address, mint_address);
+/// let result = derive_associated_token_account_address(wallet_address, mint_address, token_program());
 /// match result {
 ///     Ok(address) => {
 ///         let client = create_rpc_client("https://api.mainnet-beta.solana.com");
@@ -217,8 +220,8 @@ pub struct WalletTokenAccount {
     pub token_amount: u64,
     pub decimals: u8,
     pub ui_amount: f64,
+    pub token_program: String
 }
-
 
 /// Gets all the associated token accounts belonging to a wallet address.
 /// 
@@ -250,6 +253,7 @@ pub fn get_all_token_accounts(
     for keyed_account in token_accounts.iter() {
         let pubkey = address_to_pubkey(keyed_account.pubkey.as_str())?;
         let sol_balance = keyed_account.account.lamports as f64 / LAMPORTS_PER_SOL as f64;
+        let token_program = &keyed_account.account.owner;
         if let UiAccountData::Json(parsed_data) = &keyed_account.account.data {
             // Extract `info` field
             let info = parsed_data
@@ -303,6 +307,7 @@ pub fn get_all_token_accounts(
                 token_amount: token_balance,
                 decimals: token_decimals,
                 ui_amount,
+                token_program: token_program.to_string()
             });
         }
     }
@@ -336,7 +341,11 @@ mod tests {
 
     #[test]
     fn test_derive_associated_token_account_address() {
-        let associated_token_account_address = derive_associated_token_account_address(WALLET_ADDRESS, MICHI_MINT_ADDRESS).unwrap();
+        let associated_token_account_address = derive_associated_token_account_address(
+            WALLET_ADDRESS, 
+            MICHI_MINT_ADDRESS, 
+            token_program()
+        ).unwrap();
         assert!(associated_token_account_address == ASSOCIATED_MICHI_WALLET_ADDRESS.to_string())
     }
 

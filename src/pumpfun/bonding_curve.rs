@@ -21,7 +21,7 @@ pub struct BondingCurveAccount {
     pub complete: bool,
 }
 
-pub fn calculate_token_price(curve_state: &BondingCurveAccount) -> Result<f64, ReadTransactionError> {
+pub fn calculate_token_price_in_sol(curve_state: &BondingCurveAccount) -> Result<f64, ReadTransactionError> {
     if curve_state.virtual_token_reserves == 0 || curve_state.virtual_sol_reserves == 0 {
         return Err(ReadTransactionError::BondingCurveError);
     }

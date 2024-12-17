@@ -52,6 +52,8 @@ pub enum TransactionBuilderError {
     InvalidAddress(#[from]ParsePubkeyError),
     #[error("Unable to get latest blockhash")]
     LatestBlockhashError,
+    #[error("Unable to create instruction: {0}")]
+    InstructionError(String)
 }
 
 #[derive(Error, Debug)]

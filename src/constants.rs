@@ -13,6 +13,9 @@ pub mod solana_programs {
     pub fn token_program() -> Pubkey {
         Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap()
     }
+    pub fn token_2022_program() -> Pubkey {
+        Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap()
+    }
     pub fn associated_token_account_program() -> Pubkey {
         Pubkey::from_str("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").unwrap()
     }

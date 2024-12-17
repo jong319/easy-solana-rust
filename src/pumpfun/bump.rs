@@ -19,7 +19,7 @@ use crate::{
         }
     }, 
     error::WriteTransactionError, read_transactions::associated_token_account::derive_associated_token_account_address, utils::address_to_pubkey};
-use super::bonding_curve::{get_bonding_curve_account, calculate_token_price};
+use super::bonding_curve::{get_bonding_curve_account, calculate_token_price_in_sol};
 
 /// Bumps token by combining a buy and sell instruction within one transaction
 /// IMPT: check if the associated token account exists first
@@ -37,7 +37,8 @@ pub async fn construct_bump_pump_token_transaction(
     let user_account = user_keypair.pubkey();
     let associated_user_address = derive_associated_token_account_address(
         &user_account.to_string(), 
-        &token_account.to_string()
+        &token_account.to_string(),
+        token_program()
     )?;
     let associated_user_account = address_to_pubkey(&associated_user_address)?;
     let global_account = pumpfun_global_account();
@@ -53,7 +54,8 @@ pub async fn construct_bump_pump_token_transaction(
     let (bonding_curve_account, bonding_state) = get_bonding_curve_account(&client, token_address).expect("Unable to get bonding curve addresses. Please try again");
     let associated_bonding_curve_address = derive_associated_token_account_address(
         &bonding_curve_account.to_string(), 
-        &token_account.to_string()
+        &token_account.to_string(),
+        token_program
     )?;
     let associated_bonding_curve_account = address_to_pubkey(&associated_bonding_curve_address)?;
     
@@ -95,48 +97,48 @@ pub async fn construct_bump_pump_token_transaction(
     // Compute Budget: SetComputeUnitPrice
     let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
 
-        // get latest bonding curve account data
-        let cost_per_token = calculate_token_price(&bonding_state)?;
-        
-        let amount: f64 = (max_sol_cost / cost_per_token) * 0.8;
-        let multiplier = 10_u64.pow(PUMP_TOKEN_DECIMALS);
-        let amount_in_decimals: u64 = (amount * multiplier as f64).round() as u64;
-        let max_sol_cost_in_lamports = (max_sol_cost * LAMPORTS_PER_SOL as f64) as u64;
+    // get latest bonding curve account data
+    let cost_per_token = calculate_token_price_in_sol(&bonding_state)?;
+    
+    let amount: f64 = (max_sol_cost / cost_per_token) * 0.8;
+    let multiplier = 10_u64.pow(PUMP_TOKEN_DECIMALS);
+    let amount_in_decimals: u64 = (amount * multiplier as f64).round() as u64;
+    let max_sol_cost_in_lamports = (max_sol_cost * LAMPORTS_PER_SOL as f64) as u64;
 
-        let mut buy_instruction_data = buy_instruction_data();
-        buy_instruction_data.extend_from_slice(&amount_in_decimals.to_le_bytes());
-        buy_instruction_data.extend_from_slice(&max_sol_cost_in_lamports.to_le_bytes());
+    let mut buy_instruction_data = buy_instruction_data();
+    buy_instruction_data.extend_from_slice(&amount_in_decimals.to_le_bytes());
+    buy_instruction_data.extend_from_slice(&max_sol_cost_in_lamports.to_le_bytes());
 
-        let mut sell_instruction_data = sell_instruction_data();
-        sell_instruction_data.extend_from_slice(&amount_in_decimals.to_le_bytes());
-        sell_instruction_data.extend_from_slice(&(0 as u64).to_le_bytes());
+    let mut sell_instruction_data = sell_instruction_data();
+    sell_instruction_data.extend_from_slice(&amount_in_decimals.to_le_bytes());
+    sell_instruction_data.extend_from_slice(&(0 as u64).to_le_bytes());
 
-        let buy_instruction = Instruction {
-            program_id: pumpfun_program,
-            accounts: buy_accounts.clone(),
-            data: buy_instruction_data,
-        };
+    let buy_instruction = Instruction {
+        program_id: pumpfun_program,
+        accounts: buy_accounts.clone(),
+        data: buy_instruction_data,
+    };
 
-        let sell_instruction = Instruction {
-            program_id: pumpfun_program,
-            accounts: sell_accounts.clone(),
-            data: sell_instruction_data,
-        };
+    let sell_instruction = Instruction {
+        program_id: pumpfun_program,
+        accounts: sell_accounts.clone(),
+        data: sell_instruction_data,
+    };
 
-        let mut transaction = Transaction::new_with_payer(
-            &[
-                set_compute_unit_limit.clone(),
-                set_compute_unit_price.clone(),
-                buy_instruction,
-                sell_instruction,
-            ],
-            Some(&user_account),
-        );
-        let recent_blockhash = client.get_latest_blockhash()?;
+    let mut transaction = Transaction::new_with_payer(
+        &[
+            set_compute_unit_limit.clone(),
+            set_compute_unit_price.clone(),
+            buy_instruction,
+            sell_instruction,
+        ],
+        Some(&user_account),
+    );
+    let recent_blockhash = client.get_latest_blockhash()?;
 
-        transaction.sign(&[&user_keypair], recent_blockhash);
+    transaction.sign(&[&user_keypair], recent_blockhash);
 
-        Ok(transaction)
+    Ok(transaction)
 }
 
 
@@ -156,9 +158,9 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]  // Multi-threaded runtime
     async fn test_bump_token() {
         dotenv().ok();
-        let private_key = env::var("PRIVATE_KEY").unwrap();
+        let private_key = env::var("PRIVATE_KEY_1").unwrap();
         let client = create_rpc_client("RPC_URL");
-        
+
         // associated token account must already be created
         let create_token_account_transaction = construct_bump_pump_token_transaction(
             &client, 

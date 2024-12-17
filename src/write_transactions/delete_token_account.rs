@@ -1,170 +1,249 @@
-use spl_token::instruction::{close_account, burn};
-use solana_client::rpc_client::RpcClient;
-use solana_sdk::{
-    signature::{
-        Keypair, 
-        Signer
-    },
-    transaction::Transaction,
-    compute_budget::ComputeBudgetInstruction,
-};
-use spl_associated_token_account::get_associated_token_address;
-
+use spl_token_2022::instruction::{close_account, burn};
+use solana_sdk::{pubkey::Pubkey, signature::Signer};
 use crate::{
-    error::WriteTransactionError, 
-    read_transactions::associated_token_account::get_multiple_associated_token_accounts, 
-    utils::{address_to_pubkey, addresses_to_pubkeys},
-    solana_programs::token_program
+    error::TransactionBuilderError, 
+    read_transactions::associated_token_account::derive_associated_token_account_address, 
+    utils::address_to_pubkey
 };
 
+use super::transaction_builder::TransactionBuilder;
 
-/// Deletes a token account and burns any remaining token balance
-pub fn construct_burn_and_delete_token_accounts_transaction(
-        client: &RpcClient, 
-        signer_keypair: &str, 
-        token_addresses: Vec<&str>, 
-        rent_recipient: &str, 
-        force_delete: Option<bool>, 
-        compute_limit: u32,
-        compute_units: u64
-    ) -> Result<Transaction, WriteTransactionError> {
-    let force_delete = force_delete.unwrap_or(false);
-    // token mint accounts
-    let token_pubkeys = addresses_to_pubkeys(token_addresses);
-    if token_pubkeys.len() == 0 {
-        return Err(WriteTransactionError::InvalidAddress(solana_sdk::pubkey::ParsePubkeyError::Invalid))
-    }
-
-    // signer
-    let signer_keypair = Keypair::from_base58_string(signer_keypair);
-    let signer_pubkey = signer_keypair.pubkey();
-
-    // rent recipient
-    let fee_account = address_to_pubkey(rent_recipient)?;
-
-    // Derive and retrieve the associated token accounts
-    let associated_token_addresses: Vec<String> = token_pubkeys
-        .iter()
-        .map(|pubkey| {
-            let associated_token_pubkey = get_associated_token_address(&signer_pubkey, &pubkey);
-            associated_token_pubkey.to_string()
-        })  
-        .collect();
-    
-    let associated_token_accounts = get_multiple_associated_token_accounts(
-            client, 
-            associated_token_addresses.iter().map(|x| x.as_str()).collect()
+impl<'a> TransactionBuilder<'a> { 
+    /// Adds a delete associated token account instruction into the transaction.
+    /// This instruction will delete an associated token account for the payer keypair,
+    /// and return the rent amount to the rent recipient. The balance of the token has to be
+    /// 0 for the instruction to succeed, use the `burn_tokens` method first to remove all 
+    /// outstanding balance.
+    /// 
+    /// ## Arguments
+    /// 
+    /// * `token_address` - Address of token for the associated token account
+    /// * `target_account_address` - Address of the target account to create the associated 
+    /// token account for
+    /// * `token_program` - Pubkey of the relevant token program (e.g Token2022) 
+    /// 
+    /// ## Errors
+    /// 
+    /// Invalid token address or target account address will throw a `TransactionBuilderError::InvalidAddress`
+    /// 
+    /// ## Example 
+    /// ```
+    /// use dotenv::dotenv;
+    /// use std::env;
+    /// use solana_sdk::signer::keypair::Keypair;
+    /// use easy_solana::create_rpc_client;
+    /// use easy_solana::write_transactions::transaction_builder::TransactionBuilder;
+    /// use easy_solana::write_transactions::utils::simulate_transaction;
+    /// use easy_solana::constants::solana_programs::{token_2022_program, token_program};
+    /// 
+    /// const WALLET_ADDRESS_1: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
+    /// const USDC_TOKEN_ADDRESS: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    /// 
+    /// dotenv().ok();
+    /// let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+    /// let client = create_rpc_client("RPC_URL");
+    /// let keypair = Keypair::from_base58_string(&private_key);
+    /// let close_account_transaction = TransactionBuilder::new(&client, &keypair)
+    ///     .set_compute_units(50_000)
+    ///     .set_compute_limit(1_000_000)
+    ///     .delete_associated_token_account(USDC_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_program())
+    ///     .unwrap()
+    ///     .build()
+    ///     .unwrap();
+    /// let simulation_result = simulate_transaction(&client, close_account_transaction).unwrap();
+    /// ```
+    pub fn delete_associated_token_account(&mut self, token_address: &str, rent_recipient: &str, token_program: Pubkey) -> Result<&mut Self, TransactionBuilderError>  {
+        // Payer account
+        let payer_account = self.payer_keypair.pubkey();
+        // Associated token account 
+        let associated_token_account_address = derive_associated_token_account_address(
+            &payer_account.to_string(), 
+            token_address, 
+            token_program
         )?;
+        let associated_token_account = address_to_pubkey(&associated_token_account_address)?;
+        // Rent Recipient 
+        let rent_recipient_account = address_to_pubkey(rent_recipient)?;
 
-    let mut instructions = vec![];
-
-    // Compute Budget: SetComputeUnitLimit
-    let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_limit);
-    instructions.push(set_compute_unit_limit);
-
-    // Compute Budget: SetComputeUnitPrice
-    let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
-    instructions.push(set_compute_unit_price); 
-
-    for account in associated_token_accounts {
-        let balance = account.token_amount;
-
-        // if force delete is false, token accounts are not closed if there are still token balances within
-        if !force_delete {
-            if balance > 0 {
-                return Err(WriteTransactionError::DeleteTokenAccountError(format!("{:?} still have balances within", account.pubkey)))
-            }
-        }
-
-        let pubkey = address_to_pubkey(&account.pubkey)?;
-        let mint_pubkey = address_to_pubkey(&account.mint_pubkey)?;
-        // If the balance is greater than zero, create a burn instruction
-        if balance > 0 {
-            let burn_instruction = burn(
-                &token_program(),
-                &pubkey,
-                &mint_pubkey,
-                &signer_pubkey,
-                &[],
-                balance,
-            )?;
-            instructions.push(burn_instruction);
-        }
         // Create the close account instruction
-        let close_ix = close_account(
-            &spl_token::id(),
-            &pubkey,
-            &fee_account,
-            &signer_pubkey,
+        let close_instruction = close_account(
+            &token_program,
+            &associated_token_account,
+            &rent_recipient_account,
+            &payer_account,
             &[],
-        )?;
+        ).map_err(|err| TransactionBuilderError::InstructionError(err.to_string()))?;
 
-        instructions.push(close_ix);
+        self.instructions.push(close_instruction);
+
+        Ok(self)
     }
 
-    // Create a transaction
-    let mut transaction = Transaction::new_with_payer(
-        &instructions,
-        Some(&signer_pubkey),
-    );
+    pub fn burn_tokens(&mut self, token_address: &str, amount: u64, token_program: Pubkey) -> Result<&mut Self, TransactionBuilderError>  {
+        // Payer account
+        let payer_account = self.payer_keypair.pubkey();
+        // Associated token account 
+        let associated_token_account_address = derive_associated_token_account_address(
+            &payer_account.to_string(), 
+            token_address, 
+            token_program
+        )?;
+        let associated_token_account = address_to_pubkey(&associated_token_account_address)?;
+        // Token account
+        let token_account = address_to_pubkey(token_address)?;
 
-    // Get a recent blockhash
-    let recent_blockhash = client.get_latest_blockhash().unwrap();
-    transaction.sign(&[&signer_keypair], recent_blockhash);
+        let burn_instruction = burn(
+            &token_program,
+            &associated_token_account,
+            &token_account,
+            &payer_account,
+            &[],
+            amount,
+        ).map_err(|err| TransactionBuilderError::InstructionError(err.to_string()))?;
 
-    Ok(transaction)
+        self.instructions.push(burn_instruction);
+
+        Ok(self)
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use solana_sdk::signer::keypair::Keypair;
     use dotenv::dotenv;
     use std::env;
     use crate::{
-        read_transactions::associated_token_account::get_all_token_accounts, utils::create_rpc_client, write_transactions::utils::simulate_transaction
+        get_associated_token_account, 
+        read_transactions::associated_token_account::get_all_token_accounts, 
+        utils::create_rpc_client, 
+        write_transactions::utils::simulate_transaction,
+        constants::solana_programs::{token_2022_program, token_program}
     };
 
-    const RECIPIENT_ADDRESS: &str = "BdWaphz89Sf91ZHmqWus98jSvuiLNahwWE7bErTTqWmU";
+    const WALLET_ADDRESS_1: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
+    const WALLET_ADDRESS_2: &str = "joNASGVYc6ugNiUCsamrJ8i2PBoxFW9YvqNisNfFNXg";
+    const SOL_KING_TOKEN_ADDRESS: &str = "CMo3SMFDgJBsnKPFy9rKSSGq7jQWCnt1SqRByT5Cpump";
+    const USDC_TOKEN_ADDRESS: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    // PYUSD is under the Token2022 program
+    const PYUSD_TOKEN_ADDRESS: &str = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo";   
+
+    #[test]
+    fn failing_test_close_token_account_with_balance() {
+        dotenv().ok();
+        let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+        let client = create_rpc_client("RPC_URL");
+        let keypair = Keypair::from_base58_string(&private_key);
+
+        let close_account_transaction = TransactionBuilder::new(&client, &keypair)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            .delete_associated_token_account(SOL_KING_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_program())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let simulation_result = simulate_transaction(&client, close_account_transaction).unwrap();
+        assert!(simulation_result.error.is_some());
+    }
+
+    #[test]
+    fn test_burn_and_close_token_account_with_balance() {
+        dotenv().ok();
+        let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+        let client = create_rpc_client("RPC_URL");
+        let keypair = Keypair::from_base58_string(&private_key);
+
+        let associated_token_account_address = derive_associated_token_account_address(
+            WALLET_ADDRESS_2, 
+            SOL_KING_TOKEN_ADDRESS, 
+            token_program()
+        ).unwrap();
+        let associated_token_account = get_associated_token_account(&client, &associated_token_account_address).unwrap();
+        let balance = associated_token_account.token_amount;
+
+        let close_account_transaction = TransactionBuilder::new(&client, &keypair)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            .burn_tokens(SOL_KING_TOKEN_ADDRESS, balance, token_program())
+            .unwrap()
+            .delete_associated_token_account(SOL_KING_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_program())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let simulation_result = simulate_transaction(&client, close_account_transaction).unwrap();
+        assert!(simulation_result.error.is_none());
+    }
+
+    #[test]
+    fn test_close_token_account_with_no_balance() {
+        dotenv().ok();
+        let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+        let client = create_rpc_client("RPC_URL");
+        let keypair = Keypair::from_base58_string(&private_key);
+
+        let close_account_transaction = TransactionBuilder::new(&client, &keypair)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            .delete_associated_token_account(USDC_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_program())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let simulation_result = simulate_transaction(&client, close_account_transaction).unwrap();
+        assert!(simulation_result.error.is_none())
+    }
+
+    #[test]
+    fn test_close_token_2022_account_with_no_balance() {
+        dotenv().ok();
+        let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+        let client = create_rpc_client("RPC_URL");
+        let keypair = Keypair::from_base58_string(&private_key);
+
+        let close_account_transaction = TransactionBuilder::new(&client, &keypair)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            .delete_associated_token_account(PYUSD_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_2022_program())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let simulation_result = simulate_transaction(&client, close_account_transaction).unwrap();
+        assert!(simulation_result.error.is_none())
+    }
     
     #[test]
-    fn test_simulate_burn_and_delete_token_accounts() {
+    fn test_simulate_burn_and_delete_all_token_accounts() {
         dotenv().ok();
-        let private_key = env::var("PRIVATE_KEY").expect("Cannot find PRIVATE_KEY env var");
+        let private_key_string = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+        let payer_account_keypair = Keypair::from_base58_string(&private_key_string);
+        let payer_account = payer_account_keypair.pubkey();
+
         let client = create_rpc_client("RPC_URL");
 
         let wallet_token_accounts = get_all_token_accounts(
             &client, 
-            "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5"
+            &payer_account.to_string()
         ).expect("Unable to get token accounts");
 
-        let token_addresses: Vec<String> = wallet_token_accounts
-            .iter()
-            .map(|account| {
-                account.mint_pubkey.clone()
-            })
-            .collect();
+        let mut builder = TransactionBuilder::new(&client, &payer_account_keypair);
+            
+        builder.set_compute_units(50_000);
+        builder.set_compute_limit(1_000_000);
 
-        let burn_and_delete_transaction = construct_burn_and_delete_token_accounts_transaction(
-            &client, 
-            &private_key, 
-            token_addresses.iter().map(|x| x.as_str()).collect(), 
-            RECIPIENT_ADDRESS, 
-            Some(true),
-            2_000_000,
-            111_111
-        ).expect("Unable to construct transaction: {:?}");
+        for token in wallet_token_accounts {
+            let token_program = address_to_pubkey(&token.token_program).unwrap();
+            if token.token_amount > 0 {
+                let _ = builder.burn_tokens(&token.mint_pubkey.to_string(), token.token_amount, token_program).unwrap();
+            }
+            let _ = builder.delete_associated_token_account(&token.mint_pubkey, &payer_account.to_string(), token_program).unwrap();
+        }
+
+        let burn_and_delete_transaction = builder.build().unwrap();
 
         let simulation_result = simulate_transaction(&client, burn_and_delete_transaction).expect("Failed to simulate transaction");
         assert!(simulation_result.error.is_none());
-        let logs = &simulation_result.transaction_logs;
-        let instructions = &simulation_result.instructions;
-        println!("Compute Units consumed: {:?}", &simulation_result.units_consumed);
-        for (index, log) in logs.iter().enumerate() {
-            println!("{:?}: {:}", index, log);
-        }
-        for instruction in instructions {
-            println!("{:?}", instruction);
-        }
     }
 }

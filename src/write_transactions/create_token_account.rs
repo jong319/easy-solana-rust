@@ -1,145 +1,215 @@
-use solana_client::rpc_client::RpcClient;
-use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction, native_token::LAMPORTS_PER_SOL, signer::{
-        keypair::Keypair,
-        Signer
-    }, system_instruction, transaction::Transaction
-};
+use solana_sdk::{pubkey::Pubkey, signer::Signer};
 use spl_associated_token_account::instruction::create_associated_token_account;
 
 use crate::{
-    error::WriteTransactionError, 
-    utils::address_to_pubkey, 
-    read_transactions::associated_token_account::derive_associated_token_account_address,
-    constants::solana_programs::token_program
+    error::TransactionBuilderError, utils::address_to_pubkey
 };
 
+use super::transaction_builder::TransactionBuilder;
 
-pub fn construct_create_token_account_transaction(
-        client: &RpcClient, 
-        signer_keypair: &str, 
-        token_address: &str, 
-        fee: f64, 
-        fee_account: &str, 
-        referral_fee: f64, 
-        referral_fee_account: &str, 
-        compute_limit: u32,
-        compute_units: u64
-    ) -> Result<Transaction, WriteTransactionError> {
-    // token mint account - mint 
-    let token_account = address_to_pubkey(token_address)?;
+impl<'a> TransactionBuilder<'a> { 
+    /// Adds a create associated token account instruction into the transaction.
+    /// This instruction only creates an associated token account for the signing keypair.
+    /// If you wish to create an associated token account for other accounts, use the 
+    /// `create_associated_token_account_for_others` function instead. 
+    /// 
+    /// ## Arguments
+    /// 
+    /// * `token_address` - Address of token for the associated token account
+    /// * `token_program` - Pubkey of the relevant token program (e.g Token2022) 
+    /// 
+    /// ## Errors
+    /// 
+    /// Invalid token address will throw a `TransactionBuilderError::InvalidAddress`
+    /// 
+    /// ## Example
+    /// 
+    /// ```rust
+    /// use dotenv::dotenv;
+    /// use std::env;
+    /// use solana_sdk::signer::keypair::Keypair;
+    /// use easy_solana::create_rpc_client;
+    /// use easy_solana::write_transactions::transaction_builder::TransactionBuilder;
+    /// use easy_solana::write_transactions::utils::simulate_transaction;
+    /// use easy_solana::constants::solana_programs::{token_2022_program, token_program};
+    /// 
+    /// const PYUSD_TOKEN_ADDRESS: &str = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo";
+    /// 
+    /// dotenv().ok();
+    /// let private_key_string = env::var("PRIVATE_KEY_1").unwrap();
+    /// let private_key = Keypair::from_base58_string(&private_key_string);
+    /// let client = create_rpc_client("RPC_URL");
+    /// let create_token_account_transaction = TransactionBuilder::new(&client, &private_key)
+    ///     .set_compute_units(50_000)
+    ///     .set_compute_limit(1_000_000)
+    ///     .create_associated_token_account_for_payer(PYUSD_TOKEN_ADDRESS, token_2022_program())
+    ///     .unwrap()
+    ///     .build()
+    ///     .unwrap();
 
-    // user
-    let user_keypair = Keypair::from_base58_string(&signer_keypair);
-    let user_account = user_keypair.pubkey();
+    /// let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");
+    /// ```
+    pub fn create_associated_token_account_for_payer(&mut self, token_address: &str, token_program: Pubkey) -> Result<&mut Self, TransactionBuilderError> {
+        // Payer account
+        let payer_account = self.payer_keypair.pubkey();
+        // Token account
+        let token_account = address_to_pubkey(token_address)?;
 
-    // associated user 
-    let associated_user_address = derive_associated_token_account_address(
-        &user_account.to_string(),
-        token_address
-    )?;
-    let associated_user_account = address_to_pubkey(&associated_user_address)?;
-
-    // token program
-    let token_program = token_program();
-
-    // Instructions
-    let mut instructions = vec![];
-
-     // Compute Budget: SetComputeUnitLimit
-     let set_compute_unit_limit = ComputeBudgetInstruction::set_compute_unit_limit(compute_limit);
-     instructions.push(set_compute_unit_limit);
- 
-     // Compute Budget: SetComputeUnitPrice
-     let set_compute_unit_price = ComputeBudgetInstruction::set_compute_unit_price(compute_units);
-     instructions.push(set_compute_unit_price);
-
-    if fee > 0.0 {
-        // Balance is in lamports, 1 SOL = 1_000_000_000 lamports
-        let fee_in_lamports = (fee * LAMPORTS_PER_SOL as f64) as u64;
-
-        // Creating the transfer sol instruction
-        let fee_account = address_to_pubkey(fee_account)?;
-        let fee_instruction = system_instruction::transfer(&user_account, &fee_account, fee_in_lamports);
-        instructions.push(fee_instruction);
-    }
-
-    if referral_fee > 0.0 {
-        // Balance is in lamports, 1 SOL = 1_000_000_000 lamports
-        let referral_fee_in_lamports = (referral_fee * LAMPORTS_PER_SOL as f64) as u64;
-
-        // Creating the transfer sol instruction
-        let referral_fee_account = address_to_pubkey(referral_fee_account)?;
-        let referral_fee_instruction = system_instruction::transfer(&user_account, &referral_fee_account, referral_fee_in_lamports);
-        instructions.push(referral_fee_instruction);
-    }
-
-    // Check if the associated token account exists
-    let account_info = client.get_account(&associated_user_account);
-    if account_info.is_err() {
         let create_associated_token_account_instruction = create_associated_token_account(
-            &user_account,
-            &user_account,
+            &payer_account,
+            &payer_account,
             &token_account,
             &token_program,
         );
-        instructions.push(create_associated_token_account_instruction);
+
+        self.instructions.push(create_associated_token_account_instruction);
+
+        Ok(self)
     }
 
-    let mut transaction = Transaction::new_with_payer(
-        &instructions,
-        Some(&user_account),
-    );
 
-    let recent_blockhash = client.get_latest_blockhash()?;
-    transaction.sign(&[&user_keypair], recent_blockhash);
+    /// Adds a create associated token account instruction into the transaction.
+    /// This instruction creates an associated token account for the target account. 
+    /// The signing keypair will pay for the rent fee. 
+    /// 
+    /// ## Arguments
+    /// 
+    /// * `token_address` - Address of token for the associated token account
+    /// * `target_account_address` - Address of the target account to create the associated 
+    /// token account for
+    /// * `is_token_2022` - Whether the target token is under the Token 2022 program. 
+    /// 
+    /// ## Errors
+    /// 
+    /// Invalid token address or target account address will throw a `TransactionBuilderError::InvalidAddress`
+    /// 
+    /// ## Example
+    /// 
+    /// ```rust
+    /// use dotenv::dotenv;
+    /// use std::env;
+    /// use solana_sdk::signer::keypair::Keypair;
+    /// use easy_solana::create_rpc_client;
+    /// use easy_solana::write_transactions::transaction_builder::TransactionBuilder;
+    /// use easy_solana::write_transactions::utils::simulate_transaction;
+    /// use easy_solana::constants::solana_programs::{token_2022_program, token_program};
+    /// 
+    /// const WALLET_ADDRESS_1: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
+    /// const USDC_TOKEN_ADDRESS: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    /// 
+    /// dotenv().ok();
+    /// let private_key_string = env::var("PRIVATE_KEY_2").unwrap();
+    /// let private_key = Keypair::from_base58_string(&private_key_string);
+    /// let client = create_rpc_client("RPC_URL");
+    /// let create_token_account_transaction = TransactionBuilder::new(&client, &private_key)
+    ///     .set_compute_units(50_000)
+    ///     .set_compute_limit(1_000_000)
+    ///     .create_associated_token_account_for_others(USDC_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_program())
+    ///     .unwrap()
+    ///     .build()
+    ///     .unwrap();
+    /// let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");
+    /// ```
+    pub fn create_associated_token_account_for_others(&mut self, token_address: &str, target_account_address: &str, token_program: Pubkey) -> Result<&mut Self, TransactionBuilderError> {
+        // Payer account
+        let payer_account = self.payer_keypair.pubkey();
+        // Target Account 
+        let target_account = address_to_pubkey(target_account_address)?;
+        // Token account
+        let token_account = address_to_pubkey(token_address)?;
 
-    Ok(transaction)
-} 
+        let create_associated_token_account_instruction = create_associated_token_account(
+            &payer_account,
+            &target_account,
+            &token_account,
+            &token_program,
+        );
+
+        self.instructions.push(create_associated_token_account_instruction);
+
+        Ok(self)
+    }
+}
 
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use dotenv::dotenv;
+    use solana_sdk::signature::Keypair;
     use std::env;
     use crate::{
-        utils::create_rpc_client,
-        write_transactions::utils::simulate_transaction
+        solana_programs::{token_2022_program, token_program}, utils::create_rpc_client, write_transactions::{transaction_builder::TransactionBuilder, utils::simulate_transaction}
     };
 
-    const PNUT_TOKEN_ADDRESS: &str = "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump";
+    const WALLET_ADDRESS_1: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
+    const WALLET_ADDRESS_2: &str = "joNASGVYc6ugNiUCsamrJ8i2PBoxFW9YvqNisNfFNXg";
+    const USDC_TOKEN_ADDRESS: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    // PYUSD is under the Token2022 program
+    const PYUSD_TOKEN_ADDRESS: &str = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo";
     
     #[test]
-    fn test_simulate_create_token_account() {
+    fn test_simulate_create_token_account_with_fee_accounts() {
         dotenv().ok();
-        let private_key = env::var("PRIVATE_KEY").unwrap();
-        let fee_account = "BdWaphz89Sf91ZHmqWus98jSvuiLNahwWE7bErTTqWmU";
-        let referral_fee_account = "BdWaphz89Sf91ZHmqWus98jSvuiLNahwWE7bErTTqWmU";
+        let private_key_string = env::var("PRIVATE_KEY_1").unwrap();
+        let private_key = Keypair::from_base58_string(&private_key_string);
+
         let client = create_rpc_client("RPC_URL");
 
-        let create_token_account_transaction = construct_create_token_account_transaction(
-            &client, 
-            &private_key, 
-            PNUT_TOKEN_ADDRESS, 
-            0.001, 
-            fee_account,
-            0.0,
-            referral_fee_account,
-            2_000_000,
-            111_111
-        ).expect("Failed to construct create_token_account transaction");
+        let create_token_account_transaction = TransactionBuilder::new(&client, &private_key)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            // transfer to fee account
+            .transfer_sol(0.018, &private_key, WALLET_ADDRESS_2)
+            .unwrap()
+            // transfer to referral account
+            .transfer_sol(0.002, &private_key, WALLET_ADDRESS_2)
+            .unwrap()
+            .create_associated_token_account_for_payer(USDC_TOKEN_ADDRESS, token_program())
+            .unwrap()
+            .build()
+            .unwrap();
 
         let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");
-        let logs = &simulation_result.transaction_logs;
-        let instructions = &simulation_result.instructions;
         assert!(simulation_result.error.is_none());
-        println!("Compute Units consumed: {:?}", &simulation_result.units_consumed);
-        for (index, log) in logs.iter().enumerate() {
-            println!("{:?}: {:}", index, log);
-        }
-        for instruction in instructions {
-            println!("{:?}", instruction);
-        }
+    }
+
+    #[test]
+    fn test_simulate_create_token_2022_account() {
+        dotenv().ok();
+        let private_key_string = env::var("PRIVATE_KEY_1").unwrap();
+        let private_key = Keypair::from_base58_string(&private_key_string);
+
+        let client = create_rpc_client("RPC_URL");
+
+        let create_token_account_transaction = TransactionBuilder::new(&client, &private_key)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            .create_associated_token_account_for_payer(PYUSD_TOKEN_ADDRESS, token_2022_program())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");
+        assert!(simulation_result.error.is_none());
+    }
+
+    #[test]
+    fn test_simulate_create_token_account_for_others() {
+        dotenv().ok();
+        let private_key_string = env::var("PRIVATE_KEY_2").unwrap();
+        let private_key = Keypair::from_base58_string(&private_key_string);
+
+        let client = create_rpc_client("RPC_URL");
+
+        let create_token_account_transaction = TransactionBuilder::new(&client, &private_key)
+            .set_compute_units(50_000)
+            .set_compute_limit(1_000_000)
+            .create_associated_token_account_for_others(USDC_TOKEN_ADDRESS, WALLET_ADDRESS_1, token_program())
+            .unwrap()
+            .build()
+            .unwrap();
+
+        let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");
+        assert!(simulation_result.error.is_none());
     }
 }
