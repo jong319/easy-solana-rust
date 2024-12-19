@@ -43,7 +43,7 @@ mod tests {
     #[test]
     fn test_simulate_transfer_sol() {
         dotenv().ok();
-        let private_key_string = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
+        let private_key_string = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY_2 env var");
         let payer_account_keypair = Keypair::from_base58_string(&private_key_string);
 
         let client = create_rpc_client("RPC_URL");
@@ -63,7 +63,7 @@ mod tests {
     #[test]
     fn test_transfer_all_sol() {
         dotenv().ok();
-        let private_key = env::var("PRIVATE_KEY_1").expect("Cannot find PRIVATE_KEY env var");
+        let private_key = env::var("PRIVATE_KEY_1").expect("Cannot find PRIVATE_KEY_1 env var");
         let client = create_rpc_client("RPC_URL");
         let keypair = Keypair::from_base58_string(&private_key);
         let simulated_transaction = TransactionBuilder::new(&client, &keypair)

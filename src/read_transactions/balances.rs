@@ -1,8 +1,7 @@
-use solana_sdk::{native_token::LAMPORTS_PER_SOL, program_pack::Pack};
+use solana_sdk::native_token::LAMPORTS_PER_SOL;
 use solana_client::rpc_client::RpcClient;
-use spl_token::state::Account as SplTokenAccount;
 
-use crate::{utils::address_to_pubkey, error::ReadTransactionError};
+use crate::{error::ReadTransactionError, get_associated_token_account, utils::address_to_pubkey};
 
 /// Queries an account's solana balance, returning it in UI format 
 /// instead of in Lamports.
@@ -19,17 +18,20 @@ pub fn get_sol_balance(client: &RpcClient, address: &str) -> Result<f64, ReadTra
     Ok(ui_balance)
 }
 
+pub struct SplTokenBalance {
+    pub balance: u64, // balance without decimals
+    pub token_decimals: u8, // token decimals
+    pub ui_amount: f64 // ui balannce
+}
 /// Queries an account's token balance. Token decimals are unknown hence balance here is returned
 /// in non ui format. 
-pub fn get_token_balance(client: &RpcClient, associated_token_account_address: &str) -> Result<u64, ReadTransactionError> {
-    // Parse the public address into a Pubkey
-    let pubkey = address_to_pubkey(associated_token_account_address)?;
-
-    let account_data = client.get_account_data(&pubkey)?;
-    let token_account: SplTokenAccount = SplTokenAccount::unpack(&account_data)
-        .map_err(|_| ReadTransactionError::DeserializeError)?;
-
-    Ok(token_account.amount)
+pub fn get_token_balance(client: &RpcClient, associated_token_account_address: &str) -> Result<SplTokenBalance, ReadTransactionError> {
+    let associated_token_account = get_associated_token_account(client, associated_token_account_address)?;
+    Ok(SplTokenBalance {
+        balance: associated_token_account.token_amount,
+        token_decimals: associated_token_account.mint_decimals,
+        ui_amount: associated_token_account.token_ui_amount
+    })
 }
 
 
@@ -60,7 +62,8 @@ mod tests {
         let client = create_rpc_client("RPC_URL");
         match get_token_balance(&client, ASSOCIATED_HAPPY_CAT_WALLET_ADDRESS) {
             Ok(token_balance) => {
-                assert!(token_balance == 869439);
+                assert!(token_balance.balance == 869439);
+                assert!(token_balance.ui_amount == 869439 as f64 / f64::powi(10.0, token_balance.token_decimals as i32))
             }
             Err(_) => assert!(false) // test fails
         }
