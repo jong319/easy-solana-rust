@@ -286,7 +286,7 @@ struct WalletTokenAccount {
 /// 
 /// # Returns
 /// 
-/// `Result<Vec<WalletTokenAccount>, ReadTransactionError>` - Returns a vector of `WalletTokenAccount` 
+/// `Result<Vec<AssociatedTokenAccount>, ReadTransactionError>` - Returns a vector of `AssociatedTokenAccount` 
 /// struct on success.
 pub fn get_all_token_accounts(
     client: &RpcClient,

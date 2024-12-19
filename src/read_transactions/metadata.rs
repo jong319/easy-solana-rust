@@ -103,15 +103,44 @@ mod tests {
     use crate::utils::create_rpc_client;
 
     const PNUT_TOKEN_ADDRESS: &str = "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump";
+    const ACT_MINT_ADDRESS: &str = "ArDKWeAhQj3LDSo2XcxTUb5j68ZzWg21Awq97fBppump";
+    const MIRACOLI_MINT_ADDRESS: &str = "FafEz1HqZwzoNJ626HY8ZNBi2NwUYJE1tVn173rjpump";
+    const WALLET_ADDRESS: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
     
     #[test]
-    fn test_get_metadata_of_tokens() {
+    fn test_get_metadata_of_token() {
         let client = create_rpc_client("RPC_URL");
-        let metadata_of_tokens = get_metadata_of_tokens(&client, vec![PNUT_TOKEN_ADDRESS]).expect("Failed to fetch accounts");
-        assert!(metadata_of_tokens.len() == 1);
-        let pnut_metadata = &metadata_of_tokens[0];
+        let pnut_metadata = get_metadata_of_token(&client, PNUT_TOKEN_ADDRESS).expect("Failed to fetch accounts");
         assert!(pnut_metadata.mint.to_string() == PNUT_TOKEN_ADDRESS.to_string());
         assert!(pnut_metadata.data.name == "Peanut the Squirrel ".to_string());
         assert!(pnut_metadata.data.symbol == "Pnut ".to_string());
+    }
+
+    #[test]
+    fn failing_test_get_metadata_of_invalid_token() {
+        let client = create_rpc_client("RPC_URL");
+        let result = get_metadata_of_token(&client, WALLET_ADDRESS);
+        // Check that it's a RpcForUserError
+        match result {
+            Err(ReadTransactionError::RpcForUserError(err)) => {
+                println!("{:}", err);
+                assert!(true);
+            }
+            Err(_) => {
+                panic!("Expected RpcForUserError, but got a different error");
+            }
+            Ok(_) => {
+                panic!("Expected an error, but got Ok");
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_metadata_of_tokens() {
+        let client = create_rpc_client("RPC_URL");
+        let metadata_of_tokens = get_metadata_of_tokens(&client, vec![PNUT_TOKEN_ADDRESS, MIRACOLI_MINT_ADDRESS, ACT_MINT_ADDRESS]).expect("Failed to fetch accounts");
+        assert!(metadata_of_tokens.len() == 3);
+        let is_pnut_token_found = metadata_of_tokens.iter().any(|token| token.data.name == "Peanut the Squirrel ".to_string());
+        assert!(is_pnut_token_found);
     }
 }
