@@ -3,6 +3,9 @@ name: Rust
 on: [push]
 
 env:
+  RPC_URL: ${{secrets.RPC_URL}}
+  PRIVATE_KEY_1: ${{secrets.PRIVATE_KEY_1}}
+  PRIVATE_KEY_2: ${{secrets.PRIVATE_KEY_2}}
   CARGO_TERM_COLOR: always
 
 jobs:
@@ -15,6 +18,4 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      env: 
-        RPC_URL: ${{ secrets.RPC_URL }}
       run: cargo test --verbose
