@@ -31,16 +31,14 @@ use crate::{
 
 /// Fetches the metadata account given a token address, deserializing their data and returning `MetadataAccount`. 
 /// Paddings in token name, symbol and uri are trimmed.
-/// ## Errors
-/// Non existent account or if RPC client fails to fetch data, return a [`AccountReaderError::RpcClientError`].
-/// Metadata accounts that cannot be deserialized returns a [`AccountReaderError::DeserializeError`].
+/// 
+/// ### Arguments
 pub fn get_metadata_of_token(client: &RpcClient, token_address: &str) -> Result<MetadataAccount, ReadTransactionError> {
     let token_pubkey = address_to_pubkey(token_address)?;
     let metadata_program = metadata_program();
     // Get pubkey of the token's metadata account by deriving it from their seed
     let seed = &[b"metadata", metadata_program.as_ref(), token_pubkey.as_ref()];
     let (metadata_pubkey, _nonce) = Pubkey::find_program_address(seed, &metadata_program);
-
     // Fetch account data
     let metadata_account = client.get_account(&metadata_pubkey)?;
 
