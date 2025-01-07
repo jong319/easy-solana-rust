@@ -1,0 +1,21 @@
+name: Rust
+
+on: [push]
+
+env:
+  RPC_URL: ${{secrets.RPC_URL}}
+  PRIVATE_KEY_1: ${{secrets.PRIVATE_KEY_1}}
+  PRIVATE_KEY_2: ${{secrets.PRIVATE_KEY_2}}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    environment: Easy Solana Env
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
