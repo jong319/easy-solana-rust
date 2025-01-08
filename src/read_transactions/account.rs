@@ -29,6 +29,22 @@ pub struct Account {
     pub data: Vec<u8>
 }
 
+/// Types of Solana accounts
+/// - Wallet: Owned by a user. It can be used as a signer to 
+/// interact with programs, including the System Program to transfer SOL to other accounts. 
+/// 
+/// - AssociatedToken: contains the token data belonging to a wallet account, such as token 
+/// balance, token metadata and more. The wallet account owner has write permissions to 
+/// transfer tokens and close the account. 
+/// 
+/// - Mint: Commonly known as the token address, it contains the overall token data such as
+/// token supply, decimals and the authority account of the token.
+/// 
+/// - Metadata: holds the metadata of a token, such as token names, token tickers, and 
+/// their URIs. 
+/// 
+/// - Program: Accounts which are executable, meaning that wallet accounts can interact with 
+/// these program accounts. 
 pub enum AccountType {
     Wallet,
     AssociatedToken(SplAssociatedTokenAccount),
