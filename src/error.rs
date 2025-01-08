@@ -70,8 +70,12 @@ pub enum SimulationError {
 
 
 #[derive(Error, Debug)]
-pub enum KeypairGenerationError {
+pub enum KeypairError {
     #[error("Solana addresses should only contain characters: 1-9,A-H,J-N,P-Z,a-k,m-z")]
-    InvalidPattern
+    InvalidPattern,
+    #[error("Unable to decode base58 string to keypair")]
+    Base58DecodeError,
+    #[error("Unable to get keypair from bytes")]
+    InvalidKeypairBytes
 }
 

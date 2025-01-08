@@ -1,6 +1,11 @@
 use solana_sdk::{
-    commitment_config::CommitmentConfig, pubkey::{ParsePubkeyError, Pubkey}, signature::Keypair, signer::Signer
+    commitment_config::CommitmentConfig, 
+    pubkey::{ParsePubkeyError, Pubkey}, 
+    signature::Keypair, 
+    signer::Signer,
+    bs58
 };
+
 use solana_client::rpc_client::RpcClient;
 
 use std::time::Instant;
@@ -9,22 +14,22 @@ use std::env;
 use regex::Regex;
 use log::info;
 
-use crate::error::KeypairGenerationError;
+use crate::error::KeypairError;
 
 /// Generates a solana-sdk `Keypair` struct. 
 /// Use optional starts_with and ends_with variables to generate a vanity address. 
-pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> Result<Keypair, KeypairGenerationError> {
+pub fn generate_keypair(starts_with: Option<&str>, ends_with: Option<&str>) -> Result<Keypair, KeypairError> {
      // Define valid regex for Solana public key address characters
      let valid_chars_regex = Regex::new(r"^[1-9A-HJ-NP-Za-km-z]*$").unwrap();
      // Validate starts_with and ends_with patterns
      if let Some(prefix) = starts_with {
          if !valid_chars_regex.is_match(prefix) {
-             return Err(KeypairGenerationError::InvalidPattern);
+             return Err(KeypairError::InvalidPattern);
          }
      }
      if let Some(suffix) = ends_with {
         if !valid_chars_regex.is_match(suffix) {
-            return Err(KeypairGenerationError::InvalidPattern);
+            return Err(KeypairError::InvalidPattern);
         }
     }
 
@@ -80,10 +85,25 @@ pub fn address_to_pubkey(address: &str) -> Result<Pubkey, ParsePubkeyError> {
     address.parse::<Pubkey>()
 }
 
+pub fn base58_to_keypair(keypair_string: &str) -> Result<Keypair, KeypairError> {
+    let keypair_bytes = bs58::decode(keypair_string)
+    .into_vec()
+    .map_err(|_| KeypairError::Base58DecodeError)?;
+
+    Keypair::from_bytes(&keypair_bytes).map_err(|_| KeypairError::InvalidKeypairBytes)
+}
+
 #[cfg(test)]
 mod tests {
     use solana_sdk::signer::Signer;
     use super::*;
+
+    #[test]
+    fn test_generate_invalid_keypair() {
+        let invalid_base58_keypair = "asd";
+        let keypair = base58_to_keypair(&invalid_base58_keypair);
+        println!("{:?}", keypair);
+    }
 
     #[test]
     fn test_generate_keypair_that_starts_with_ab() {

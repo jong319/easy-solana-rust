@@ -83,13 +83,16 @@ It is vital for applications to be able to customise the transactions. The below
 ```
 use dotenv::dotenv;
 use std::env;
-use easy_solana::write_transactions::{
-    transaction_builder::TransactionBuilder,
-    utils::{
-        simulate_transaction,
-        send_transaction_unchecked,
-        send_and_confirm_transaction
-    }
+use easy_solana::{
+    write_transactions::{
+        transaction_builder::TransactionBuilder,
+        utils::{
+            simulate_transaction,
+            send_transaction_unchecked,
+            send_and_confirm_transaction
+        }
+    },
+    utils::base58_to_keypair
 };
 
 // Load environment variables
@@ -97,12 +100,13 @@ dotenv().ok();
 
 // Get private key string via environment variables
 let private_key_string = env::var("PRIVATE_KEY_1").unwrap();
+let private_key = base58_to_keypair(&private_key_string).unwrap();
 
 // Create RPC client
 let client = create_rpc_client("RPC_URL");
 
 // Customised transaction
-let create_token_account_simulation_transaction = TransactionBuilder::new(&client, &private_key_string)
+let create_token_account_simulation_transaction = TransactionBuilder::new(&client, &private_key)
     // set priority fee
     .set_compute_units(50_000) 
     // max compute limit in solana is ~2_000_000, recommended to set a higher limit before simulation 
