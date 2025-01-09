@@ -53,8 +53,7 @@ fn parse_simulation_result(simulation_result: RpcSimulateTransactionResult) -> R
     .iter()
     .flat_map(|inner_instruction| {
         inner_instruction.instructions.iter().filter_map(|instruction| {
-            if let UiInstruction::Parsed(parsed) = instruction {
-                if let UiParsedInstruction::Parsed(parsed_instruction) = parsed {
+            if let UiInstruction::Parsed(UiParsedInstruction::Parsed(parsed_instruction)) = instruction {
                     let program = parsed_instruction.program.clone();
                     let program_id = parsed_instruction.program_id.clone();
 
@@ -68,7 +67,6 @@ fn parse_simulation_result(simulation_result: RpcSimulateTransactionResult) -> R
                             });
                         }
                     }
-                }
             }
             None
         })

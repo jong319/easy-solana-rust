@@ -20,8 +20,7 @@ use super::metadata::MetadataAccount;
 /// - `pubkey`: The public key of the account.
 /// - `sol_balance`: The sol balance in the account in ui format e.g 0.1 SOL
 /// - `account_type`: The type of account with the relevant data deserialized.
-/// - `data`: The data held within the account, custom programs can be borsh deserialized
-/// given that the user knows the struct of the data.
+/// - `data`: The data held within the account, custom programs can be borsh deserialized given that the user knows the struct of the data.
 pub struct Account {
     pub pubkey: String,
     pub sol_balance: f64,
@@ -30,21 +29,15 @@ pub struct Account {
 }
 
 /// Types of Solana accounts
-/// - Wallet: Owned by a user. It can be used as a signer to 
-/// interact with programs, including the System Program to transfer SOL to other accounts. 
+/// - Wallet: Owned by a user. It can be used as a signer to interact with programs, including the System Program to transfer SOL to other accounts. 
 /// 
-/// - AssociatedToken: contains the token data belonging to a wallet account, such as token 
-/// balance, token metadata and more. The wallet account owner has write permissions to 
-/// transfer tokens and close the account. 
+/// - AssociatedToken: contains the token data belonging to a wallet account, such as token balance, token metadata and more. The wallet account owner has write permissions to transfer tokens and close the account. 
 /// 
-/// - Mint: Commonly known as the token address, it contains the overall token data such as
-/// token supply, decimals and the authority account of the token.
+/// - Mint: Commonly known as the token address, it contains the overall token data such as token supply, decimals and the authority account of the token.
 /// 
-/// - Metadata: holds the metadata of a token, such as token names, token tickers, and 
-/// their URIs. 
+/// - Metadata: holds the metadata of a token, such as token names, token tickers, and their URIs. 
 /// 
-/// - Program: Accounts which are executable, meaning that wallet accounts can interact with 
-/// these program accounts. 
+/// - Program: Accounts which are executable, meaning that wallet accounts can interact with these program accounts. 
 pub enum AccountType {
     Wallet,
     AssociatedToken(SplAssociatedTokenAccount),

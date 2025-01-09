@@ -57,12 +57,12 @@ pub mod pumpfun_accounts {
         Pubkey::from_str("Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1").unwrap()
     }
     pub fn buy_instruction_data() -> Vec<u8> {
-        return vec![
+        vec![
             0x66, 0x06, 0x3d, 0x12, 0x01, 0xda, 0xeb, 0xea, // Instruction code
         ]
     }
     pub fn sell_instruction_data() -> Vec<u8> {
-        return vec![
+        vec![
             0x33, 0xe6, 0x85, 0xa4, 0x01, 0x7f, 0x83, 0xad,
         ]
     }

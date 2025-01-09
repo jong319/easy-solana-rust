@@ -79,15 +79,14 @@ pub fn get_metadata_of_tokens(client: &RpcClient, token_addresses: Vec<&str>) ->
     // deserialize accounts 
     let data_of_metadata_accounts: Vec<MetadataAccount> = metadata_accounts
         .into_iter()
-        .filter_map(|account_option| account_option)
-        .map(|account| {
+        .flatten()
+        .filter_map(|account| {
             let mut metadata_account = MetadataAccount::deserialize(&mut account.data.as_ref()).ok()?;
             metadata_account.data.name = metadata_account.data.name.trim_end_matches('\0').to_string();
             metadata_account.data.symbol = metadata_account.data.symbol.trim_end_matches('\0').to_string();
             metadata_account.data.uri = metadata_account.data.uri.trim_end_matches('\0').to_string();
             Some(metadata_account)
         })
-        .filter_map(|metadata_account|metadata_account)
         .collect();
 
     Ok(data_of_metadata_accounts)

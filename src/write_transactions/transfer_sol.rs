@@ -18,7 +18,7 @@ impl<'a> TransactionBuilder<'a> {
         
         // if from_keypair is not the payer_keypair, add it to signing keypairs
         if from_keypair.pubkey() != self.payer_keypair.pubkey() {
-            self.signing_keypairs.push(&from_keypair);
+            self.signing_keypairs.push(from_keypair);
         }
         Ok(self)
     }

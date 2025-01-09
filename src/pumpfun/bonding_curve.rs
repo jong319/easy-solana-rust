@@ -42,7 +42,7 @@ pub fn get_bonding_curve_account(client: &RpcClient, token_address: &str) -> Opt
             return Some((bonding_curve_account, bonding_curve_data))
         }
     }
-    return None
+    None
 }
 
 fn get_bonding_curve_address(token_address: &str) -> Result<String, ReadTransactionError> {

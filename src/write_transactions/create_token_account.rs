@@ -7,7 +7,7 @@ use crate::{
 
 use super::transaction_builder::TransactionBuilder;
 
-impl<'a> TransactionBuilder<'a> { 
+impl TransactionBuilder<'_> { 
     /// Adds a create associated token account instruction into the transaction.
     /// This instruction only creates an associated token account for the signing keypair.
     /// If you wish to create an associated token account for other accounts, use the 
@@ -46,7 +46,6 @@ impl<'a> TransactionBuilder<'a> {
     ///     .unwrap()
     ///     .build()
     ///     .unwrap();
-
     /// let simulation_result = simulate_transaction(&client, create_token_account_transaction).expect("Failed to simulate transaction");
     /// ```
     pub fn create_associated_token_account_for_payer(&mut self, token_address: &str, token_program: Pubkey) -> Result<&mut Self, TransactionBuilderError> {
@@ -75,8 +74,7 @@ impl<'a> TransactionBuilder<'a> {
     /// ## Arguments
     /// 
     /// * `token_address` - Address of token for the associated token account
-    /// * `target_account_address` - Address of the target account to create the associated 
-    /// token account for
+    /// * `target_account_address` - Address of the target account to create the associated token account for
     /// * `is_token_2022` - Whether the target token is under the Token 2022 program. 
     /// 
     /// ## Errors

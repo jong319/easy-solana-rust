@@ -152,14 +152,11 @@ pub fn derive_multiple_associated_token_account_addresses(
 /// # Arguments
 /// 
 /// * `client` - An instance of the RPC client used to communicate with the blockchain.
-/// * `associated_token_account_address` - address of the associated token account. To get the 
-/// address of an associated token account, use the `derive_associated_token_account_address`
-/// function.
+/// * `associated_token_account_address` - address of the associated token account. To get the address of an associated token account, use the `derive_associated_token_account_address` function.
 /// 
 /// # Returns
 /// 
-/// `Result<AssociatedTokenAccount, ReadTransactionError>` - Returns the `AssociatedTokenAccount` 
-/// struct on success, or an error if invalid address, non existent account or invalid account data.
+/// `Result<AssociatedTokenAccount, ReadTransactionError>` - Returns the `AssociatedTokenAccount` struct on success, or an error if invalid address, non existent account or invalid account data.
 /// 
 /// # Example
 /// 
@@ -243,7 +240,7 @@ pub fn get_multiple_associated_token_accounts(
                 token_accounts.push((pubkey, token_account));
                 mint_pubkeys.push(token_account.mint);
             } else {
-                eprintln!("get_multiple_associated_token_accounts: Unable to parse SplTokenAccount data for {}", pubkey.to_string())
+                eprintln!("get_multiple_associated_token_accounts: Unable to parse SplTokenAccount data for {}", pubkey)
             }
         } else {
             eprintln!("get_multiple_associated_token_accounts: Account not found")
@@ -333,32 +330,32 @@ pub fn get_all_token_accounts(
             let info = parsed_data
                 .parsed
                 .get("info")
-                .ok_or_else(|| ReadTransactionError::DeserializeError)?
+                .ok_or(ReadTransactionError::DeserializeError)?
                 .as_object()
-                .ok_or_else(|| ReadTransactionError::DeserializeError)?;
+                .ok_or(ReadTransactionError::DeserializeError)?;
 
             // Extract fields from `info`
             let mint_pubkey = info
                 .get("mint")
                 .and_then(Value::as_str)
-                .ok_or_else(|| ReadTransactionError::DeserializeError)?
+                .ok_or(ReadTransactionError::DeserializeError)?
                 .parse::<Pubkey>()?;
 
             let owner_pubkey = info
                 .get("owner")
                 .and_then(Value::as_str)
-                .ok_or_else(|| ReadTransactionError::DeserializeError)?
+                .ok_or(ReadTransactionError::DeserializeError)?
                 .parse::<Pubkey>()?;
 
             let token_amount = info
                 .get("tokenAmount")
                 .and_then(Value::as_object)
-                .ok_or_else(|| ReadTransactionError::DeserializeError)?;
+                .ok_or(ReadTransactionError::DeserializeError)?;
 
             let token_balance = token_amount
                 .get("amount")
                 .and_then(Value::as_str)
-                .ok_or_else(|| ReadTransactionError::DeserializeError)?
+                .ok_or(ReadTransactionError::DeserializeError)?
                 .parse::<u64>()
                 .map_err(|_| ReadTransactionError::DeserializeError)?;
 
@@ -405,7 +402,6 @@ pub fn get_all_token_accounts(
             account_option.and_then(|account| {
                 SplMintAccount::unpack(&account.data)
                     .ok()
-                    .map(|mint_account| mint_account)
             })
         })
         .collect();

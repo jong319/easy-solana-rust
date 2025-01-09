@@ -32,8 +32,8 @@ pub async fn construct_bump_pump_token_transaction(
     compute_units: u64,
 ) -> Result<Transaction, WriteTransactionError> {
     // Define accounts involved
-    let token_account = address_to_pubkey(&token_address)?;
-    let user_keypair = Keypair::from_base58_string(&base58_keypair);
+    let token_account = address_to_pubkey(token_address)?;
+    let user_keypair = Keypair::from_base58_string(base58_keypair);
     let user_account = user_keypair.pubkey();
     let associated_user_address = derive_associated_token_account_address(
         &user_account.to_string(), 
@@ -51,7 +51,7 @@ pub async fn construct_bump_pump_token_transaction(
     let pumpfun_program = pumpfun_program();
     
     // Get bonding curve and associated bonding curve accounts
-    let (bonding_curve_account, bonding_state) = get_bonding_curve_account(&client, token_address).expect("Unable to get bonding curve addresses. Please try again");
+    let (bonding_curve_account, bonding_state) = get_bonding_curve_account(client, token_address).expect("Unable to get bonding curve addresses. Please try again");
     let associated_bonding_curve_address = derive_associated_token_account_address(
         &bonding_curve_account.to_string(), 
         &token_account.to_string(),
@@ -111,7 +111,7 @@ pub async fn construct_bump_pump_token_transaction(
 
     let mut sell_instruction_data = sell_instruction_data();
     sell_instruction_data.extend_from_slice(&amount_in_decimals.to_le_bytes());
-    sell_instruction_data.extend_from_slice(&(0 as u64).to_le_bytes());
+    sell_instruction_data.extend_from_slice(&(0_u64).to_le_bytes());
 
     let buy_instruction = Instruction {
         program_id: pumpfun_program,

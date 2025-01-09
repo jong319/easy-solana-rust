@@ -8,7 +8,7 @@ use crate::{
 
 use super::transaction_builder::TransactionBuilder;
 
-impl<'a> TransactionBuilder<'a> { 
+impl TransactionBuilder<'_> { 
     /// Adds a delete associated token account instruction into the transaction.
     /// This instruction will delete an associated token account for the payer keypair,
     /// and return the rent amount to the rent recipient. The balance of the token has to be
@@ -18,8 +18,7 @@ impl<'a> TransactionBuilder<'a> {
     /// ## Arguments
     /// 
     /// * `token_address` - Address of token for the associated token account
-    /// * `target_account_address` - Address of the target account to create the associated 
-    /// token account for
+    /// * `target_account_address` - Address of the target account to create the associated token account for
     /// * `token_program` - Pubkey of the relevant token program (e.g Token2022) 
     /// 
     /// ## Errors
