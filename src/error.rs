@@ -24,7 +24,13 @@ pub enum ReadTransactionError {
 impl From<RpcClientError> for ReadTransactionError {
     fn from(err: RpcClientError) -> Self {
         match err.kind {
-            RpcClientErrorKind::RpcError(solana_client::rpc_request::RpcError::ForUser(err)) => ReadTransactionError::RpcForUserError(err.to_string()) ,
+            RpcClientErrorKind::RpcError(solana_client::rpc_request::RpcError::ForUser(err)) => {
+                if err.contains("AccountNotFound") {
+                    return ReadTransactionError::AccountNotFound 
+                } else {
+                    ReadTransactionError::RpcForUserError(err.to_string()) 
+                }
+            },
             _ => ReadTransactionError::RpcError(err.to_string()), // Default fallback
         }
     }
@@ -53,7 +59,9 @@ pub enum TransactionBuilderError {
     #[error("Unable to get latest blockhash")]
     LatestBlockhashError,
     #[error("Unable to create instruction: {0}")]
-    InstructionError(String)
+    InstructionError(String),
+    #[error("Unable to query blockchain data: {0}")]
+    BlockchainQueryError(#[from]ReadTransactionError)
 }
 
 #[derive(Error, Debug)]

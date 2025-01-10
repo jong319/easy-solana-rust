@@ -21,6 +21,7 @@ use super::metadata::MetadataAccount;
 /// - `sol_balance`: The sol balance in the account in ui format e.g 0.1 SOL
 /// - `account_type`: The type of account with the relevant data deserialized.
 /// - `data`: The data held within the account, custom programs can be borsh deserialized given that the user knows the struct of the data.
+#[derive(Debug)]
 pub struct Account {
     pub pubkey: String,
     pub sol_balance: f64,
@@ -38,6 +39,7 @@ pub struct Account {
 /// - Metadata: holds the metadata of a token, such as token names, token tickers, and their URIs. 
 /// 
 /// - Program: Accounts which are executable, meaning that wallet accounts can interact with these program accounts. 
+#[derive(Debug)]
 pub enum AccountType {
     Wallet,
     AssociatedToken(SplAssociatedTokenAccount),

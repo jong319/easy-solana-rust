@@ -113,11 +113,7 @@ mod tests {
     use dotenv::dotenv;
     use std::env;
     use crate::{
-        get_associated_token_account, 
-        read_transactions::associated_token_account::get_all_token_accounts, 
-        utils::create_rpc_client, 
-        write_transactions::utils::simulate_transaction,
-        constants::solana_programs::{token_2022_program, token_program}
+        constants::solana_programs::{token_2022_program, token_program}, get_associated_token_account, read_transactions::associated_token_account::get_all_token_accounts, utils::{base58_to_keypair, create_rpc_client}, write_transactions::utils::simulate_transaction
     };
 
     const WALLET_ADDRESS_1: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
@@ -132,7 +128,7 @@ mod tests {
         dotenv().ok();
         let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
         let client = create_rpc_client("RPC_URL");
-        let keypair = Keypair::from_base58_string(&private_key);
+        let keypair = base58_to_keypair(&private_key).unwrap();
 
         let close_account_transaction = TransactionBuilder::new(&client, &keypair)
             .set_compute_units(50_000)
@@ -151,7 +147,7 @@ mod tests {
         dotenv().ok();
         let private_key = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY env var");
         let client = create_rpc_client("RPC_URL");
-        let keypair = Keypair::from_base58_string(&private_key);
+        let keypair = base58_to_keypair(&private_key).unwrap();
 
         let associated_token_account_address = derive_associated_token_account_address(
             WALLET_ADDRESS_2, 

@@ -133,10 +133,9 @@ impl TransactionBuilder<'_> {
 #[cfg(test)]
 mod tests {
     use dotenv::dotenv;
-    use solana_sdk::signature::Keypair;
     use std::env;
     use crate::{
-        solana_programs::{token_2022_program, token_program}, utils::create_rpc_client, write_transactions::{transaction_builder::TransactionBuilder, utils::simulate_transaction}
+        solana_programs::{token_2022_program, token_program}, utils::{base58_to_keypair, create_rpc_client}, write_transactions::{transaction_builder::TransactionBuilder, utils::simulate_transaction}
     };
 
     const WALLET_ADDRESS_1: &str = "ACTC9k56rLB1Z6cUBKToptXrEXussVkiASJeh8p74Fa5";
@@ -149,7 +148,7 @@ mod tests {
     fn test_simulate_create_token_account_with_fee_accounts() {
         dotenv().ok();
         let private_key_string = env::var("PRIVATE_KEY_1").unwrap();
-        let private_key = Keypair::from_base58_string(&private_key_string);
+        let private_key = base58_to_keypair(&private_key_string).unwrap();
 
         let client = create_rpc_client("RPC_URL");
 
@@ -175,7 +174,7 @@ mod tests {
     fn test_simulate_create_token_2022_account() {
         dotenv().ok();
         let private_key_string = env::var("PRIVATE_KEY_1").unwrap();
-        let private_key = Keypair::from_base58_string(&private_key_string);
+        let private_key = base58_to_keypair(&private_key_string).unwrap();
 
         let client = create_rpc_client("RPC_URL");
 
@@ -195,7 +194,7 @@ mod tests {
     fn test_simulate_create_token_account_for_others() {
         dotenv().ok();
         let private_key_string = env::var("PRIVATE_KEY_2").unwrap();
-        let private_key = Keypair::from_base58_string(&private_key_string);
+        let private_key = base58_to_keypair(&private_key_string).unwrap();
 
         let client = create_rpc_client("RPC_URL");
 

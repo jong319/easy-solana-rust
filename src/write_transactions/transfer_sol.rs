@@ -32,7 +32,7 @@ mod tests {
     use dotenv::dotenv;
     use std::env;
     use crate::{
-        utils::create_rpc_client,
+        utils::{base58_to_keypair, create_rpc_client},
         write_transactions::utils::simulate_transaction
     };
 
@@ -44,14 +44,14 @@ mod tests {
     fn test_simulate_transfer_sol() {
         dotenv().ok();
         let private_key_string = env::var("PRIVATE_KEY_2").expect("Cannot find PRIVATE_KEY_2 env var");
-        let payer_account_keypair = Keypair::from_base58_string(&private_key_string);
+        let private_key = base58_to_keypair(&private_key_string).unwrap();
 
         let client = create_rpc_client("RPC_URL");
 
-        let transfer_sol_transaction = TransactionBuilder::new(&client, &payer_account_keypair)
+        let transfer_sol_transaction = TransactionBuilder::new(&client, &private_key)
             .set_compute_units(50_000)
             .set_compute_limit(1_000_000)
-            .transfer_sol(0.001, &payer_account_keypair, WALLET_ADDRESS_1)
+            .transfer_sol(0.001, &private_key, WALLET_ADDRESS_1)
             .unwrap()
             .build()
             .unwrap();
@@ -63,13 +63,15 @@ mod tests {
     #[test]
     fn test_transfer_all_sol() {
         dotenv().ok();
-        let private_key = env::var("PRIVATE_KEY_1").expect("Cannot find PRIVATE_KEY_1 env var");
+        let private_key_string = env::var("PRIVATE_KEY_1").expect("Cannot find PRIVATE_KEY_1 env var");
+        let private_key = base58_to_keypair(&private_key_string).unwrap();
+
         let client = create_rpc_client("RPC_URL");
-        let keypair = Keypair::from_base58_string(&private_key);
-        let simulated_transaction = TransactionBuilder::new(&client, &keypair)
+
+        let simulated_transaction = TransactionBuilder::new(&client, &private_key)
             .set_compute_units(50_000)
             .set_compute_limit(1_000_000)
-            .transfer_sol(1_000_000.0, &keypair, WALLET_ADDRESS_2)
+            .transfer_sol(1_000_000.0, &private_key, WALLET_ADDRESS_2)
             .unwrap() // transaction builder error
             .build()
             .unwrap();
@@ -87,14 +89,14 @@ mod tests {
                 }
             }
         }
-        let wallet_data_length = client.get_account_data(&keypair.pubkey()).unwrap().len();
+        let wallet_data_length = client.get_account_data(&private_key.pubkey()).unwrap().len();
         let minimum_sol_for_rent_exemption = client.get_minimum_balance_for_rent_exemption(wallet_data_length).unwrap();
         transfer_amount -= minimum_sol_for_rent_exemption as f64;
         
-        let transfer_transaction = TransactionBuilder::new(&client, &keypair)
+        let transfer_transaction = TransactionBuilder::new(&client, &private_key)
             .set_compute_units(50_000)
             .set_compute_limit(simulation_result.units_consumed)
-            .transfer_sol(transfer_amount / LAMPORTS_PER_SOL as f64, &keypair, WALLET_ADDRESS_2)
+            .transfer_sol(transfer_amount / LAMPORTS_PER_SOL as f64, &private_key, WALLET_ADDRESS_2)
             .unwrap() // transaction builder error
             .build()
             .unwrap();
